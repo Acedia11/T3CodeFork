@@ -1,4 +1,6 @@
 import { useLoadBalancedEnvironment } from "../hooks/useLoadBalancedEnvironment";
+import { AcePreviewEnabled } from "~/AcePreview";
+import { AceChatBackdrop } from "./chat/AceChatBackdrop";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
 import type { UsageLimitSourceSnapshots } from "@t3tools/contracts";
 import {
@@ -9722,7 +9724,11 @@ export default function ChatView(props: ChatViewProps) {
   });
 
   return (
-    <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
+    <div
+      data-ace-chat={AcePreviewEnabled ? "" : undefined}
+      className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+    >
+      {AcePreviewEnabled && <AceChatBackdrop Empty={isDraftHeroState} />}
       <Dialog
         open={
           deviceSetupThread !== null &&
@@ -9971,7 +9977,10 @@ export default function ChatView(props: ChatViewProps) {
                   className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-3xl"
                 >
                   {isDraftHeroState ? (
-                    <div className="absolute inset-x-0 bottom-full z-0">
+                    <div
+                      data-ace-draft-heading={AcePreviewEnabled ? "" : undefined}
+                      className="absolute inset-x-0 bottom-full z-0"
+                    >
                       <div
                         className="pb-8 group-has-data-[composer-shoulder-tab]/composer-stack:pb-4"
                         style={

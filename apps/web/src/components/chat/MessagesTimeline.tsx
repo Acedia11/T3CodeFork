@@ -1,4 +1,6 @@
 import { ArrowUpIcon, ClockIcon } from "lucide-react";
+import { AcePreviewEnabled } from "~/AcePreview";
+import { AceToolLabel } from "./AceToolLabel";
 import { ReadOnlySourcePreview } from "../files/AttachmentFilePreview";
 import { useRightPanelStore } from "~/rightPanelStore";
 import {
@@ -2659,20 +2661,38 @@ function ActivityGroupTimelineRow({
     }
   }
   return (
-    <div>
+    <div data-ace-activity-group={AcePreviewEnabled ? "" : undefined}>
       <button
         type="button"
         className="group/live-work flex min-h-6 w-full max-w-full cursor-pointer items-center rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
         aria-expanded={row.expanded}
         onClick={() => ctx.onToggleWorkGroup(row.groupId, row.id)}
       >
-        <LiveActivityRow
-          label={label}
-          iconName={iconWork ? workEntryIconName(iconWork) : "brain"}
-          toolIcon={iconWork?.toolIcon ?? iconWork?.toolSource?.icon}
-          active={row.active}
-          shimmer={thinking}
-        />
+        {AcePreviewEnabled ? (
+          <>
+            <ChevronRightIcon
+              className={cn(
+                "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+                row.expanded && "rotate-90",
+              )}
+            />
+            <span className="truncate text-[13px] text-secondary-label">{label}</span>
+            {row.active && (
+              <span
+                className="ml-1 size-1.5 shrink-0 rounded-full bg-primary/65"
+                aria-label="Working"
+              />
+            )}
+          </>
+        ) : (
+          <LiveActivityRow
+            label={label}
+            iconName={iconWork ? workEntryIconName(iconWork) : "brain"}
+            toolIcon={iconWork?.toolIcon ?? iconWork?.toolSource?.icon}
+            active={row.active}
+            shimmer={thinking}
+          />
+        )}
       </button>
       {row.expanded ? <div className="mt-2 space-y-2">{details}</div> : null}
     </div>
@@ -3237,18 +3257,28 @@ function WorkGroupToggleTimelineRow({
       type="button"
       className="group/tool-group group/timeline-row relative flex min-h-6 w-full cursor-pointer items-center gap-1.5 rounded-md px-0.5 py-0.5 text-left text-sm leading-relaxed transition-colors duration-150 hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
       aria-label={row.hasFailure ? `${row.summary}, tool call failed` : undefined}
+      data-ace-work-toggle={AcePreviewEnabled ? "" : undefined}
       aria-expanded={row.expanded}
       onClick={() => ctx.onToggleWorkGroup(row.groupId, row.id)}
     >
       <span className="flex size-6 shrink-0 items-center justify-center text-icon-muted">
-        <ToolActivityIconView
-          icon={row.toolIcon}
-          fallbackName={
-            row.summaryToolIcon ?? row.toolSurface ?? toolGroupSummaryIconName(row.summaryKind)
-          }
-          className="size-4 shrink-0 stroke-[1.8]"
-          muted
-        />
+        {AcePreviewEnabled ? (
+          <ChevronRightIcon
+            className={cn(
+              "size-3.5 transition-transform duration-200",
+              row.expanded && "rotate-90",
+            )}
+          />
+        ) : (
+          <ToolActivityIconView
+            icon={row.toolIcon}
+            fallbackName={
+              row.summaryToolIcon ?? row.toolSurface ?? toolGroupSummaryIconName(row.summaryKind)
+            }
+            className="size-4 shrink-0 stroke-[1.8]"
+            muted
+          />
+        )}
       </span>
       <span className="min-w-0 flex-1 truncate text-secondary-label">{row.summary}</span>
       <TimelineRowTimestamp createdAt={row.createdAt} timestampFormat={ctx.timestampFormat} />
@@ -4801,6 +4831,7 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
 
   return (
     <div
+      data-ace-tool-row={AcePreviewEnabled ? "" : undefined}
       className={cn(
         "group/timeline-row relative flex flex-col rounded-md px-0.5 transition-colors",
         isExpandedToolGroupEntry ? "py-0" : "py-0.5",
@@ -4835,7 +4866,11 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
                 onClick={expanded ? stopRowToggleWhileSelectingText : undefined}
                 onPointerDown={expanded ? stopRowToggle : undefined}
               >
-                {previewText}
+                {AcePreviewEnabled && !expanded ? (
+                  <AceToolLabel Label={previewText} />
+                ) : (
+                  previewText
+                )}
               </span>
               {answerPreview ? (
                 <span

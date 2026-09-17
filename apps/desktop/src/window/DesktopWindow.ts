@@ -278,13 +278,16 @@ function syncWindowAppearance(
   window: Electron.BrowserWindow,
   shouldUseDarkColors: boolean,
   platform: NodeJS.Platform,
+  AceGlass: boolean,
 ): Effect.Effect<void> {
   return Effect.sync(() => {
     if (window.isDestroyed()) {
       return;
     }
 
-    window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
+    window.setBackgroundColor(
+      AceGlass ? "#00000000" : getInitialWindowBackgroundColor(shouldUseDarkColors),
+    );
     const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
     if (typeof titleBarOverlay === "object") {
       window.setTitleBarOverlay(titleBarOverlay);
@@ -309,6 +312,8 @@ function bindFirstRevealTrigger(
   }
 }
 
+declare const __T3CODE_ACE_PREVIEW__: boolean | undefined;
+
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
@@ -321,6 +326,7 @@ export const make = Effect.gen(function* () {
   const desktopSettings = yield* DesktopAppSettings.DesktopAppSettings;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
   const electronApp = yield* ElectronApp.ElectronApp;
+  const AceGlassWindows = new WeakSet<Electron.BrowserWindow>();
   // Window-side latch for the primary backend's readiness. Set by
   // handleBackendReady (driven by the pool's onReady callback), cleared
   // by handleBackendNotReady (driven by onShutdown). Only consumed by
@@ -393,6 +399,11 @@ export const make = Effect.gen(function* () {
     if (persistedBounds !== null && initialBounds === DesktopAppSettings.DEFAULT_MAIN_WINDOW_SIZE) {
       yield* logWindowWarning("saved main window bounds could not be restored; using defaults");
     }
+    const AceGlass =
+      environment.isDevelopment &&
+      environment.platform === "darwin" &&
+      typeof __T3CODE_ACE_PREVIEW__ !== "undefined" &&
+      __T3CODE_ACE_PREVIEW__;
     const window = yield* electronWindow.create({
       ...initialBounds,
       minWidth: 840,
@@ -400,7 +411,16 @@ export const make = Effect.gen(function* () {
       show: false,
       autoHideMenuBar: true,
       ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
-      backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
+      backgroundColor: AceGlass
+        ? "#00000000"
+        : getInitialWindowBackgroundColor(shouldUseDarkColors),
+      ...(AceGlass
+        ? {
+            transparent: true,
+            vibrancy: "under-window" as const,
+            visualEffectState: "followWindow" as const,
+          }
+        : {}),
       ...iconOption,
       title: environment.displayName,
       ...getWindowTitleBarOptions(shouldUseDarkColors, environment.platform),
@@ -419,6 +439,7 @@ export const make = Effect.gen(function* () {
       },
     });
 
+    if (AceGlass) AceGlassWindows.add(window);
     if (environment.platform === "darwin") {
       window.setAutoHideCursor(false);
     }
@@ -1020,7 +1041,12 @@ export const make = Effect.gen(function* () {
     syncAppearance: Effect.gen(function* () {
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
       yield* electronWindow.syncAllAppearance((window) =>
-        syncWindowAppearance(window, shouldUseDarkColors, environment.platform),
+        syncWindowAppearance(
+          window,
+          shouldUseDarkColors,
+          environment.platform,
+          AceGlassWindows.has(window),
+        ),
       );
     }).pipe(Effect.withSpan("desktop.window.syncAppearance")),
   });

@@ -3,7 +3,9 @@ import ReactDOM from "react-dom/client";
 import { createHashHistory, createBrowserHistory } from "@tanstack/react-router";
 
 import "./index.css";
+import "./AcePreview.css";
 
+import { AcePreviewEnabled } from "./AcePreview";
 import { isElectron } from "./env";
 import { hasCloudPublicConfig } from "./cloud/publicConfig";
 import { getRouter } from "./router";
@@ -18,6 +20,8 @@ import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkR
 const history = isElectron ? createHashHistory() : createBrowserHistory();
 
 const router = getRouter(history);
+
+document.documentElement.toggleAttribute("data-ace-preview", AcePreviewEnabled);
 
 if (isElectron) {
   syncDocumentElectronPlatformClasses(navigator.platform);

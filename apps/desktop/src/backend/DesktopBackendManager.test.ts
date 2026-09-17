@@ -193,22 +193,51 @@ function makeTestInstance(input: MakeInstanceInput) {
 }
 
 describe("DesktopBackendManager", () => {
-  it.effect.each([undefined, "1"])(
-    "spawns the backend with fd3 bootstrap and fd4 telemetry (smoke=%s)",
-    (ForkSmoke) =>
+  it.effect.each([
+    {
+      Name: "standard",
+      ForkSmoke: undefined,
+      AcePreview: undefined,
+      DevServer: undefined,
+      Detached: undefined,
+    },
+    { Name: "smoke", ForkSmoke: "1", AcePreview: undefined, DevServer: undefined, Detached: false },
+    {
+      Name: "preview",
+      ForkSmoke: undefined,
+      AcePreview: "1",
+      DevServer: "http://localhost:6230",
+      Detached: false,
+    },
+    {
+      Name: "packaged",
+      ForkSmoke: undefined,
+      AcePreview: "1",
+      DevServer: undefined,
+      Detached: undefined,
+    },
+  ])(
+    "spawns the backend with fd3 bootstrap and fd4 telemetry ($Name)",
+    ({ ForkSmoke, AcePreview, DevServer, Detached }) =>
       Effect.scoped(
         Effect.gen(function* () {
-          const Previous = process.env.T3CODE_FORK_SMOKE;
+          const Variables = {
+            T3CODE_FORK_SMOKE: ForkSmoke,
+            VITE_T3CODE_ACE_PREVIEW: AcePreview,
+            VITE_DEV_SERVER_URL: DevServer,
+          };
+          const Previous = Object.fromEntries(
+            Object.keys(Variables).map((Key) => [Key, process.env[Key]]),
+          );
+          const SetVariables = (Values: Record<string, string | undefined>) => {
+            for (const [Key, Value] of Object.entries(Values)) {
+              if (Value === undefined) delete process.env[Key];
+              else process.env[Key] = Value;
+            }
+          };
           yield* Effect.acquireRelease(
-            Effect.sync(() => {
-              if (ForkSmoke === undefined) delete process.env.T3CODE_FORK_SMOKE;
-              else process.env.T3CODE_FORK_SMOKE = ForkSmoke;
-            }),
-            () =>
-              Effect.sync(() => {
-                if (Previous === undefined) delete process.env.T3CODE_FORK_SMOKE;
-                else process.env.T3CODE_FORK_SMOKE = Previous;
-              }),
+            Effect.sync(() => SetVariables(Variables)),
+            () => Effect.sync(() => SetVariables(Previous)),
           );
           let spawnedCommand: ChildProcess.Command | undefined;
           let bootstrapJson = "";
@@ -270,7 +299,7 @@ describe("DesktopBackendManager", () => {
           assert.deepEqual(spawnedCommand.args, ["/server/bin.mjs", "--bootstrap-fd", "3"]);
           assert.equal(spawnedCommand.options.cwd, "/server");
           assert.equal(spawnedCommand.options.extendEnv, true);
-          assert.equal(spawnedCommand.options.detached, ForkSmoke === "1" ? false : undefined);
+          assert.equal(spawnedCommand.options.detached, Detached);
           assert.equal(spawnedCommand.options.stdout, "pipe");
           assert.equal(spawnedCommand.options.stderr, "pipe");
           assert.equal(spawnedCommand.options.killSignal, "SIGTERM");

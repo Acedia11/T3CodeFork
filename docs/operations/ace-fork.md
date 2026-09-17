@@ -7,6 +7,27 @@ the two applications use the same profile and are intended to run one at a time.
 
 ## Editing
 
+For a separate desktop preview while the installed app stays open:
+
+```sh
+python3 ForkTools/Preview.py
+```
+
+The preview opens as `T3 Code (Dev)` and keeps its test threads under
+`~/Library/Application Support/T3CodeFork/Preview`. It uses Electron's separate
+development profile. Frontend edits refresh in this window as you save.
+Keep its terminal open and use Ctrl+C to stop the preview processes.
+
+To seed history before the first launch, run `python3 ForkTools/PreviewHistory.py`.
+It takes a consistent read-only snapshot, disconnects provider sessions, clears
+pending work, and redirects projects to empty preview folders. History changes
+never sync back. Login credentials and production settings are not copied.
+The snapshot command refuses to overwrite an existing preview database.
+
+Experimental visuals must use `AcePreviewEnabled` or the `data-ace-preview`
+document attribute. The launcher enables them only in development, so committing
+experiments does not enable them in packaged Ace updates.
+
 Commit and push changes on `main`, then prepare a local build:
 
 ```sh

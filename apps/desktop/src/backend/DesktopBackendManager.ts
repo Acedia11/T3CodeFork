@@ -477,8 +477,11 @@ export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
     cwd: options.cwd,
     env: options.env,
     extendEnv: options.extendEnv,
-    // Keep validation backends in the smoke runner's process group for watchdog cleanup.
-    ...(process.env.T3CODE_FORK_SMOKE === "1" ? { detached: false } : {}),
+    // Isolated validation and preview backends follow their launcher's lifetime.
+    ...(process.env.T3CODE_FORK_SMOKE === "1" ||
+    (process.env.VITE_T3CODE_ACE_PREVIEW === "1" && process.env.VITE_DEV_SERVER_URL)
+      ? { detached: false }
+      : {}),
     // In Electron main, process.execPath points to the Electron binary.
     // Run the child in Node mode so this backend process does not become a GUI app instance.
     stdin: options.bootstrapDelivery === "stdin" ? bootstrapStream : "ignore",

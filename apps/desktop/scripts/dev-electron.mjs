@@ -52,6 +52,7 @@ const childTreeGracePeriodMs = 1_200;
 const remoteDebuggingPort = process.env.T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT?.trim();
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone dev script has no Effect runtime.
 const hostPlatform = NodeOS.platform();
+const OwnPreviewGroup = hostPlatform !== "win32" && process.env.VITE_T3CODE_ACE_PREVIEW === "1";
 
 NodeChildProcess.execFileSync(
   process.execPath,
@@ -89,14 +90,17 @@ function killChildTreeByPid(pid, signal) {
   NodeChildProcess.spawnSync("pkill", [`-${signal}`, "-P", String(pid)], { stdio: "ignore" });
 }
 
-function cleanupStaleDevApps() {
-  if (hostPlatform === "win32") {
-    return;
+function SignalApp(App, Signal) {
+  if (OwnPreviewGroup && typeof App.pid === "number") {
+    try {
+      process.kill(-App.pid, Signal);
+    } catch (Cause) {
+      if (Cause.code !== "ESRCH") throw Cause;
+    }
+  } else {
+    killChildTreeByPid(App.pid, Signal.replace("SIG", ""));
+    App.kill(Signal);
   }
-
-  NodeChildProcess.spawnSync("pkill", ["-f", "--", `--t3code-dev-root=${desktopDir}`], {
-    stdio: "ignore",
-  });
 }
 
 function startApp() {
@@ -115,9 +119,11 @@ function startApp() {
     cwd: desktopDir,
     env: childEnv,
     stdio: "inherit",
+    detached: OwnPreviewGroup,
   });
 
   currentApp = app;
+  if (OwnPreviewGroup) console.log(`[dev-electron] Preview process group: ${app.pid}`);
 
   app.once("error", () => {
     if (currentApp === app) {
@@ -130,6 +136,10 @@ function startApp() {
   });
 
   app.once("exit", (code, signal) => {
+    if (OwnPreviewGroup) {
+      SignalApp(app, "SIGTERM");
+      setTimeout(() => SignalApp(app, "SIGKILL"), forcedShutdownTimeoutMs).unref();
+    }
     if (currentApp === app) {
       currentApp = null;
     }
@@ -163,18 +173,14 @@ async function stopApp() {
     };
 
     app.once("exit", finish);
-    app.kill("SIGTERM");
-    killChildTreeByPid(app.pid, "TERM");
-    cleanupStaleDevApps();
+    SignalApp(app, "SIGTERM");
 
     setTimeout(() => {
       if (settled) {
         return;
       }
 
-      app.kill("SIGKILL");
-      killChildTreeByPid(app.pid, "KILL");
-      cleanupStaleDevApps();
+      SignalApp(app, "SIGKILL");
       finish();
     }, forcedShutdownTimeoutMs).unref();
   });
@@ -255,7 +261,6 @@ async function shutdown(exitCode) {
 }
 
 startWatchers();
-cleanupStaleDevApps();
 startApp();
 
 process.once("SIGINT", () => {
