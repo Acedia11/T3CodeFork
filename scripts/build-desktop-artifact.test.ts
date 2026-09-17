@@ -1900,6 +1900,34 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 
+  it.effect("signs local fork bundles without changing the Nightly identity", () =>
+    Effect.gen(function* () {
+      const Config = yield* createBuildConfig(
+        "mac",
+        "zip",
+        "0.0.43-nightly.20260917.1837",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      const Mac = Config.mac as Record<string, unknown>;
+      assert.equal(Mac.identity, "-");
+      assert.equal(Mac.notarize, false);
+      assert.notProperty(Mac, "sign");
+      assert.equal(Config.appId, "com.t3tools.t3code");
+      assert.equal(Config.productName, "T3 Code (Nightly)");
+      assert.equal(
+        (Mac.extendInfo as Record<string, unknown>).CFBundleDisplayName,
+        "T3 Code (Ace)",
+      );
+    }).pipe(
+      Effect.provide(
+        ConfigProvider.layer(ConfigProvider.fromEnv({ env: { T3CODE_FORK_BUILD: "1" } })),
+      ),
+    ),
+  );
+
   it.effect("keeps executable resource editing enabled for unsigned Windows builds", () =>
     Effect.gen(function* () {
       const config = yield* createBuildConfig(

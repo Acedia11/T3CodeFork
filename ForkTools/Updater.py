@@ -208,6 +208,7 @@ class ForkUpdater:
             NamedApp = Destination / self.AppPath.name
             if BuiltApp != NamedApp:
                 BuiltApp.rename(NamedApp)
+            self.BuildCommand(["codesign", "--verify", "--deep", "--strict", NamedApp], Source, Environment, Log)
             self.SmokeTest(NamedApp, Log)
             Manifest = {"Status": "ready", "Version": Version, "Commit": Commit, "App": str(NamedApp),
                         "Digest": AppDigest(NamedApp), "BuiltAt": time.time()}

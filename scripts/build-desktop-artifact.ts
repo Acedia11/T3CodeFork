@@ -2699,6 +2699,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     const repoRoot = yield* RepoRoot;
     buildConfig.mac = {
       target: target === "dmg" ? [target, "zip"] : [target],
+      ...(IsForkBuild && !signed ? { identity: "-", notarize: false } : {}),
       icon: "icon.icns",
       category: "public.app-category.developer-tools",
       extendInfo: {
