@@ -363,6 +363,7 @@ export type MessagesTimelineRow =
       turnId?: TurnId | null;
       groupId: string;
       hiddenCount: number;
+      groupedEntries?: WorkLogEntry[];
       expanded: boolean;
       summary: string;
       summaryKind: ToolGroupSummaryKind;
@@ -541,6 +542,8 @@ interface TurnFold {
   hiddenEntryIds: ReadonlySet<string>;
   label: string;
 }
+
+const EmptyTurnFolds: ReadonlyMap<string, TurnFold> = new Map();
 
 /**
  * The session's running turn is authoritative when latestTurn briefly lags or
@@ -946,6 +949,7 @@ export function deriveMessagesTimelineRows(input: {
   runningTurnId?: TurnId | null;
   expandedTurnIds?: ReadonlySet<TurnId>;
   expandedWorkGroupIds?: ReadonlySet<string>;
+  FoldSettledTurns?: boolean;
   isWorking: boolean;
   activeTurnStartedAt: string | null;
   turnDiffSummaries: ReadonlyArray<TurnDiffSummary>;
@@ -985,12 +989,15 @@ export function deriveMessagesTimelineRows(input: {
     unsettledTurnId,
     isWorking: input.isWorking,
   });
-  const foldsByAnchorEntryId = deriveTurnFolds({
-    timelineEntries: input.timelineEntries,
-    terminalAssistantMessageIds,
-    latestTurn: input.latestTurn ?? null,
-    unfoldedTurnIds: activeVisualResponseTurnIds,
-  });
+  const foldsByAnchorEntryId =
+    input.FoldSettledTurns === false
+      ? EmptyTurnFolds
+      : deriveTurnFolds({
+          timelineEntries: input.timelineEntries,
+          terminalAssistantMessageIds,
+          latestTurn: input.latestTurn ?? null,
+          unfoldedTurnIds: activeVisualResponseTurnIds,
+        });
   const collapsedEntryIds = new Set<string>();
   for (const fold of foldsByAnchorEntryId.values()) {
     if (!input.expandedTurnIds?.has(fold.turnId)) {
@@ -1318,6 +1325,7 @@ export function deriveMessagesTimelineRows(input: {
             turnId: timelineEntry.entry.turnId ?? null,
             groupId,
             hiddenCount: visibleGroupedEntries.length,
+            groupedEntries: visibleGroupedEntries,
             expanded,
             summary: usesSingleToolCallLabel
               ? singleToolCallLabel(singleEntry)

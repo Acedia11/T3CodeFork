@@ -1,6 +1,5 @@
 import { useLoadBalancedEnvironment } from "../hooks/useLoadBalancedEnvironment";
 import { AcePreviewEnabled } from "~/AcePreview";
-import { AceChatBackdrop } from "./chat/AceChatBackdrop";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
 import type { UsageLimitSourceSnapshots } from "@t3tools/contracts";
 import {
@@ -232,6 +231,7 @@ import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings"
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 import {
   AlarmClockIcon,
+  FolderIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
   DownloadIcon,
@@ -746,6 +746,7 @@ type ChatViewProps =
       forceExpandedMobileComposer?: boolean;
       threadSyncPhase?: ThreadSyncPhase | null;
       routeKind: "server";
+      AceOnEmptyChange?: (Empty: boolean) => void;
       draftId?: never;
     }
   | {
@@ -756,6 +757,7 @@ type ChatViewProps =
       forceExpandedMobileComposer?: boolean;
       threadSyncPhase?: never;
       routeKind: "draft";
+      AceOnEmptyChange?: (Empty: boolean) => void;
       draftId: DraftId;
     };
 
@@ -1470,6 +1472,7 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     reserveTitleBarControlInset = true,
     forceExpandedMobileComposer = false,
+    AceOnEmptyChange,
   } = props;
   const draftId = routeKind === "draft" ? props.draftId : null;
   const threadSyncPhase = routeKind === "server" ? (props.threadSyncPhase ?? null) : null;
@@ -1748,6 +1751,9 @@ export default function ChatView(props: ChatViewProps) {
     useState<Record<string, number>>({});
   const shouldUseRightPanelSheet = useMediaQuery(RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY);
   const isMobileViewport = useMediaQuery("max-sm");
+  // Desktop transition snapshots would isolate the glass from its wallpaper backdrop.
+  const UseComposerViewTransition =
+    forceExpandedMobileComposer && (!AcePreviewEnabled || isMobileViewport);
   const [terminalFocusRequestId, setTerminalFocusRequestId] = useState(0);
   const [pullRequestDialogState, setPullRequestDialogState] =
     useState<PullRequestDialogState | null>(null);
@@ -3625,6 +3631,9 @@ export default function ChatView(props: ChatViewProps) {
     // hero headline would paint over it.
     hasWorktreeSetupCard: worktreeSetup !== null,
   });
+  useLayoutEffect(() => {
+    AceOnEmptyChange?.(isDraftHeroState);
+  }, [AceOnEmptyChange, isDraftHeroState]);
   const [
     attachDraftHeroTransitionGroupRef,
     attachDraftHeroComposerAnchorRef,
@@ -9726,9 +9735,9 @@ export default function ChatView(props: ChatViewProps) {
   return (
     <div
       data-ace-chat={AcePreviewEnabled ? "" : undefined}
+      data-ace-empty={AcePreviewEnabled ? isDraftHeroState : undefined}
       className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
     >
-      {AcePreviewEnabled && <AceChatBackdrop Empty={isDraftHeroState} />}
       <Dialog
         open={
           deviceSetupThread !== null &&
@@ -9783,6 +9792,7 @@ export default function ChatView(props: ChatViewProps) {
             {...(routeKind === "draft" && draftId ? { draftId } : {})}
             activeThreadTitle={activeThread.title}
             isServerThread={isServerThread}
+            {...(AcePreviewEnabled ? { AceProvider: selectedProvider } : {})}
             activeProject={activeProject}
             openInCwd={gitCwd}
             activeProjectScripts={activeProjectScripts}
@@ -9984,7 +9994,7 @@ export default function ChatView(props: ChatViewProps) {
                       <div
                         className="pb-8 group-has-data-[composer-shoulder-tab]/composer-stack:pb-4"
                         style={
-                          forceExpandedMobileComposer
+                          UseComposerViewTransition
                             ? {
                                 viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME,
                               }
@@ -10002,7 +10012,7 @@ export default function ChatView(props: ChatViewProps) {
                   <div
                     className="relative"
                     style={
-                      forceExpandedMobileComposer
+                      UseComposerViewTransition
                         ? { viewTransitionName: MOBILE_COMPOSER_VIEW_TRANSITION_NAME }
                         : undefined
                     }
@@ -10146,6 +10156,12 @@ export default function ChatView(props: ChatViewProps) {
                           />
                         </div>
                       </ComposerSurface.Host>
+                      {AcePreviewEnabled && activeProject && !isGitRepo ? (
+                        <div className="AceWorkspaceContext">
+                          <FolderIcon aria-hidden="true" />
+                          <span>Local folder</span>
+                        </div>
+                      ) : null}
                       <div className="min-h-0">
                         <div
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}

@@ -7,7 +7,9 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useCanGoBack, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { AcePreviewEnabled } from "../AcePreview";
 
 import { isElectron } from "../env";
 import { getLocalStorageItem, removeLocalStorageItem } from "../hooks/useLocalStorage";
@@ -74,6 +76,20 @@ function readInitialThreadSidebarWidth(): number {
 }
 
 function SidebarControl() {
+  const Router = useRouter();
+  const CanGoBack = useCanGoBack();
+  const HistoryIndex = useLocation({ select: (Location) => Location.state.__TSR_index });
+  const [HistoryEnd, SetHistoryEnd] = useState(HistoryIndex);
+  useEffect(() => {
+    if (!AcePreviewEnabled) return;
+    return Router.history.subscribe(({ action: Action, location: Location }) => {
+      SetHistoryEnd((Previous) =>
+        Action.type === "PUSH"
+          ? Location.state.__TSR_index
+          : Math.max(Previous, Location.state.__TSR_index),
+      );
+    });
+  }, [Router]);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar } = useSidebar();
   const isSidebarVisible = useSidebarVisibility();
@@ -142,6 +158,28 @@ function SidebarControl() {
           Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
+      {AcePreviewEnabled && (
+        <>
+          <button
+            type="button"
+            className="AceChromeButton"
+            aria-label="Go back"
+            disabled={!CanGoBack}
+            onClick={() => Router.history.back()}
+          >
+            <ArrowLeftIcon aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="AceChromeButton"
+            aria-label="Go forward"
+            disabled={HistoryIndex >= HistoryEnd}
+            onClick={() => Router.history.forward()}
+          >
+            <ArrowRightIcon aria-hidden="true" />
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -167,6 +205,8 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const isOnSettings = pathname === "/settings" || pathname.startsWith("/settings/");
   const isMacosDesktop = isElectron && isMacPlatform(navigator.platform);
   const [sidebarWidth, setSidebarWidth] = useState(readInitialThreadSidebarWidth);
+  const [AceSidebarOpen, SetAceSidebarOpen] = useState(false);
+  const [AceSettingsSidebarOpen, SetAceSettingsSidebarOpen] = useState(true);
   // Subscribed rather than read once: the clamp must track live window size,
   // and a clamped drag ends with an unchanged width, which skips the re-render
   // that would otherwise refresh a render-time snapshot.
@@ -236,7 +276,13 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
       <SidebarProvider
         className="h-dvh! min-h-0!"
         data-panel-animations={routePanelAnimationsActive ? "true" : "false"}
-        defaultOpen
+        defaultOpen={!AcePreviewEnabled}
+        {...(AcePreviewEnabled
+          ? {
+              open: isOnSettings ? AceSettingsSidebarOpen : AceSidebarOpen,
+              onOpenChange: isOnSettings ? SetAceSettingsSidebarOpen : SetAceSidebarOpen,
+            }
+          : {})}
         style={sidebarProviderStyle}
       >
         <ProjectProjectionRetention />

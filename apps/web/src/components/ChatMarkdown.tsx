@@ -67,6 +67,7 @@ import React, {
   useCallback,
   memo,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -195,6 +196,8 @@ import {
 } from "../browser/openFileInPreview";
 import { resolveLinkTarget } from "../browser/browserLinkTarget";
 import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
+import { AcePreviewEnabled } from "../AcePreview";
+import { AttachAceStreamingText } from "../AceStreamingText";
 
 interface ChatMarkdownProps {
   text: string;
@@ -3310,6 +3313,26 @@ function ChatMarkdown({
     localMediaPreview,
     setLocalMediaPreview,
   } = useChatMarkdownState({ text, ...props });
+  const AceStreamingScope = props.threadRef
+    ? JSON.stringify([props.threadRef.environmentId, props.threadRef.threadId])
+    : (props.environmentId ?? "");
+  const AceStreaming = useRef<ReturnType<typeof AttachAceStreamingText>>(undefined);
+  useLayoutEffect(
+    () => () => {
+      AceStreaming.current?.Dispose();
+      AceStreaming.current = undefined;
+    },
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A thread change must dispose its retained final fade.
+    [AceStreamingScope],
+  );
+  useLayoutEffect(() => {
+    if (!AcePreviewEnabled || !markdownRef.current) return;
+    if (componentState.isStreaming) {
+      AceStreaming.current ??= AttachAceStreamingText(markdownRef.current, AceStreamingScope);
+    }
+    AceStreaming.current?.SetStreaming(componentState.isStreaming);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Reattach after a thread change even if it is still streaming.
+  }, [AceStreamingScope, componentState.isStreaming, markdownRef]);
   const incrementalParsing =
     props.isStreaming === true &&
     extraRemarkPlugins.length === 0 &&
@@ -3335,6 +3358,7 @@ function ChatMarkdown({
       )}
       // Gates the fade-in for blocks that arrive while the response streams.
       data-streaming={componentState.isStreaming ? "" : undefined}
+      data-ace-streaming={AcePreviewEnabled && componentState.isStreaming ? "" : undefined}
       onCopy={handleCopy}
     >
       <ChatMarkdownRendererContext value={componentState}>

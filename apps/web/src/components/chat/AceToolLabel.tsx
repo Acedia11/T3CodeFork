@@ -1,24 +1,45 @@
-import { FileCode2Icon } from "lucide-react";
+import { FileTextIcon, SearchIcon, SquarePenIcon, TerminalIcon } from "lucide-react";
+import type { AceToolPresentation } from "./AceToolPresentation";
+import { PierreEntryIcon } from "./PierreEntryIcon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
-export function AceToolLabel({ Label }: { Label: string }) {
-  const Match = /^(Read|Reading|Edit|Edited|Editing|Updated|Created|Opened|Viewing)\s+(.+)$/i.exec(
-    Label,
-  );
-  if (!Match) return Label;
-  const Path = Match[2]!.replace(/^[`"']|[`"']$/g, "");
-  if (!/[/\\]|\.[a-z0-9]{1,8}$/i.test(Path) || Path.includes("\n")) return Label;
-  const Filename = Path.split(/[/\\]/).at(-1) || Path;
+export function AceToolIcon({ Kind }: { Kind: AceToolPresentation["Kind"] }) {
+  const Icon =
+    Kind === "read"
+      ? FileTextIcon
+      : Kind === "edit"
+        ? SquarePenIcon
+        : Kind === "search"
+          ? SearchIcon
+          : TerminalIcon;
+  return <Icon aria-hidden className="size-4 shrink-0 stroke-[1.5]" />;
+}
+
+export function AceToolLabel({
+  Presentation,
+  Theme,
+}: {
+  Presentation: AceToolPresentation;
+  Theme: "light" | "dark";
+}) {
   return (
     <span className="AceToolLabel">
-      <span>{Match[1]}</span>
-      <Tooltip>
-        <TooltipTrigger render={<span className="AceFileChip" />}>
-          <FileCode2Icon size={13} className="shrink-0 opacity-65" />
-          <span>{Filename}</span>
-        </TooltipTrigger>
-        <TooltipPopup>{Path}</TooltipPopup>
-      </Tooltip>
+      <span className="AceToolVerb">{Presentation.Label}</span>
+      {Presentation.Paths.slice(0, 3).map((Path) => (
+        <Tooltip key={Path}>
+          <TooltipTrigger render={<span className="AceToolFileChip" />}>
+            <span className="AceToolFileIcon">
+              <PierreEntryIcon pathValue={Path} kind="file" theme={Theme} className="size-3.5" />
+            </span>
+            <span>{Path.split(/[/\\]/).at(-1) || Path}</span>
+          </TooltipTrigger>
+          <TooltipPopup>{Path}</TooltipPopup>
+        </Tooltip>
+      ))}
+      {Presentation.Paths.length > 3 ? (
+        <span className="AceToolDetail">+{Presentation.Paths.length - 3} more</span>
+      ) : null}
+      {Presentation.Detail ? <span className="AceToolDetail">{Presentation.Detail}</span> : null}
     </span>
   );
 }

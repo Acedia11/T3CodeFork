@@ -2,7 +2,8 @@ import type { DraftId } from "~/composerDraftStore";
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
-import { FolderPlusIcon } from "lucide-react";
+import { FolderPlusIcon, FolderIcon, MonitorIcon, ChevronDownIcon } from "lucide-react";
+import { AcePreviewEnabled } from "../../AcePreview";
 import { useCallback, useMemo } from "react";
 
 import { openCommandPalette } from "~/commandPaletteBus";
@@ -232,6 +233,26 @@ export function DraftHeroHeadline({
       {activeProjectTitle ?? "Add a project"}
     </button>
   );
+
+  if (AcePreviewEnabled) {
+    const EnvironmentLabel = activeProjectRef
+      ? environmentLabelById.get(activeProjectRef.environmentId)
+      : null;
+    return (
+      <div className="AceDraftContext">
+        <FolderIcon aria-hidden="true" />
+        {projectSelector}
+        <ChevronDownIcon className="AceContextChevron" aria-hidden="true" />
+        {EnvironmentLabel && (
+          <>
+            <span className="AceContextSeparator" />
+            <MonitorIcon aria-hidden="true" />
+            <span>{EnvironmentLabel}</span>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <h1 className="mx-auto w-full max-w-5xl text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">

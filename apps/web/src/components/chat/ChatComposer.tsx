@@ -1,4 +1,5 @@
 import { DESKTOP_PASTE_AS_TEXT_EVENT } from "../../lib/desktopPasteAsText";
+import { AcePreviewEnabled } from "../../AcePreview";
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { runtimeModeConfig, runtimeModeOptions } from "./runtimeModeConfig";
@@ -4682,14 +4683,16 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     composerSubmissionError !== null ||
     providerInputSubmissionError !== null ||
     hasImageAttachmentAttention;
-  const isComposerResting = shouldUseRestingComposerLayout({
-    isExistingThread: routeKind === "server" && activeThreadId !== null,
-    isMobileViewport,
-    isScrollCollapsed: isComposerScrollCollapsed,
-    hasExpandedChrome: composerHasExpandedChrome,
-    hasMultilinePrompt,
-    timelineOverflows,
-  });
+  const isComposerResting =
+    !AcePreviewEnabled &&
+    shouldUseRestingComposerLayout({
+      isExistingThread: routeKind === "server" && activeThreadId !== null,
+      isMobileViewport,
+      isScrollCollapsed: isComposerScrollCollapsed,
+      hasExpandedChrome: composerHasExpandedChrome,
+      hasMultilinePrompt,
+      timelineOverflows,
+    });
   const expandedComposerImages = isComposerResting
     ? standaloneComposerImages.filter((image) => pendingSnapShotIdSet.has(image.id))
     : standaloneComposerImages;
@@ -5043,7 +5046,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         onOpenProviderSetup={onOpenProviderSetup}
       />
 
-      {composerControlsCompact ? (
+      {AcePreviewEnabled && !composerControlsCompact ? (
+        <>
+          {providerTraitsPicker}
+          <CompactComposerControlsMenu
+            interactionMode={interactionMode}
+            runtimeMode={runtimeMode}
+            showInteractionModeToggle={planModeUiEnabled}
+            onToggleInteractionMode={toggleInteractionMode}
+            onRuntimeModeChange={handleRuntimeModeChange}
+          />
+        </>
+      ) : composerControlsCompact ? (
         <CompactComposerControlsMenu
           interactionMode={interactionMode}
           runtimeMode={runtimeMode}
@@ -6307,6 +6321,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             ref={composerSurfaceRef}
             data-chat-composer-surface="true"
             data-chat-composer-mobile-collapsed={isComposerCollapsedMobile ? "true" : "false"}
+            data-ace-composer-expanded={
+              AcePreviewEnabled
+                ? composerHasExpandedChrome ||
+                  isComposerApprovalState ||
+                  pendingUserInputs.length > 0 ||
+                  prompt.includes("\n") ||
+                  prompt.length > 90 ||
+                  composerVideos.length > 0 ||
+                  expandedComposerImages.length > 0 ||
+                  composerFiles.length > 0 ||
+                  showPlanFollowUpPrompt
+                : undefined
+            }
             className={cn(
               "rounded-[20px] transition-[background-color] duration-200",
               isDragOverComposer ? "bg-accent/45 ring-1 ring-primary/70" : null,
@@ -6846,9 +6873,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                               ? "Choose a project above to start a thread"
                               : showProviderUnavailable
                                 ? "Enable a provider in Settings to send a message"
-                                : phase === "disconnected"
+                                : phase === "disconnected" && !AcePreviewEnabled
                                   ? DISCONNECTED_COMPOSER_PLACEHOLDER
-                                  : "Ask anything, @tag files/folders, $use skills, or / for commands"
+                                  : AcePreviewEnabled
+                                    ? "Do anything…"
+                                    : "Ask anything, @tag files/folders, $use skills, or / for commands"
                     }
                     disabled={
                       isConnecting ||

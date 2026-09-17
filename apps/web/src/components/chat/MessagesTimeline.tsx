@@ -1,6 +1,10 @@
 import { ArrowUpIcon, ClockIcon } from "lucide-react";
 import { AcePreviewEnabled } from "~/AcePreview";
-import { AceToolLabel } from "./AceToolLabel";
+import { AceToolIcon, AceToolLabel } from "./AceToolLabel";
+import { AceToolDisclosure } from "./AceToolDisclosure";
+import * as AceToolPresentation from "./AceToolPresentation";
+import * as AceToolTimeline from "./AceToolTimeline.logic";
+import "./AceToolTimeline.css";
 import { ReadOnlySourcePreview } from "../files/AttachmentFilePreview";
 import { useRightPanelStore } from "~/rightPanelStore";
 import {
@@ -287,7 +291,7 @@ interface TimelineRowSharedState {
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
   onToggleTurnFold: (turnId: TurnId) => void;
   onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
-  onToggleWorkEntry: (anchorKey: string, collapsed: boolean) => void;
+  onToggleWorkEntry: (anchorKey: string, collapsed: boolean, SettleDuration?: number) => void;
   onToggleSpawnRow: (entryId: string, expanded: boolean) => void;
   onToggleReasoning: (messageId: string, expanded: boolean, anchorKey: string) => void;
   expandedReasoningMessageIds: ReadonlySet<string>;
@@ -324,6 +328,7 @@ const TimelineRowActivityCtx = createContext<TimelineRowActivityState>(null!);
 interface WorkGroupViewState {
   scrollPositions: Map<string, WorkGroupScrollAnchor>;
   expandedEntries: Set<string>;
+  AceToolFolds?: Map<string, boolean>;
 }
 
 const WorkGroupViewCtx = createContext<{
@@ -627,7 +632,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   }, [settlingListIdentity]);
 
   const suspendEndScrollMaintenanceForDisclosure = useCallback(
-    (anchorKey: string, collapsed = false) => {
+    (anchorKey: string, collapsed = false, SettleDuration = 0) => {
       disclosureAnchorKeyRef.current = anchorKey;
       setDisclosureToggleSettling(true);
       if (disclosureSettleFrameRef.current !== null) {
@@ -636,21 +641,27 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       if (disclosureSettleSecondFrameRef.current !== null) {
         cancelAnimationFrame(disclosureSettleSecondFrameRef.current);
       }
+      const Duration = AcePreviewEnabled && !prefersReducedMotion ? SettleDuration : 0;
+      const Started = Duration > 0 ? performance.now() : 0;
+      const Settle = (Now: number) => {
+        // Keep the header anchored while the preview tree changes height.
+        if (Duration > 0 && Now - Started < Duration) {
+          disclosureSettleSecondFrameRef.current = requestAnimationFrame(Settle);
+          return;
+        }
+        disclosureAnchorKeyRef.current = null;
+        setDisclosureToggleSettling(false);
+        disclosureSettleFrameRef.current = null;
+        disclosureSettleSecondFrameRef.current = null;
+        if (collapsed && resolveTimelineIsAtEnd(listRef.current?.getState()) === true) {
+          onToolOutputCollapsedAtEnd?.();
+        }
+      };
       disclosureSettleFrameRef.current = requestAnimationFrame(() => {
-        disclosureSettleSecondFrameRef.current = requestAnimationFrame(() => {
-          disclosureAnchorKeyRef.current = null;
-          setDisclosureToggleSettling(false);
-          disclosureSettleFrameRef.current = null;
-          disclosureSettleSecondFrameRef.current = null;
-          // Wait for row measurement and the disclosure click's blur check.
-          // Closing output can reveal the end without a scroll event.
-          if (collapsed && resolveTimelineIsAtEnd(listRef.current?.getState()) === true) {
-            onToolOutputCollapsedAtEnd?.();
-          }
-        });
+        disclosureSettleSecondFrameRef.current = requestAnimationFrame(Settle);
       });
     },
-    [listRef, onToolOutputCollapsedAtEnd],
+    [listRef, onToolOutputCollapsedAtEnd, prefersReducedMotion],
   );
 
   const shouldRestoreVisibleContentPosition = useCallback((row: MessagesTimelineRow) => {
@@ -776,6 +787,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         runningTurnId,
         expandedTurnIds: paintedExpandedTurnIds,
         expandedWorkGroupIds: paintedExpandedWorkGroupIds,
+        FoldSettledTurns: !AcePreviewEnabled,
         isWorking,
         activeTurnStartedAt,
         turnDiffSummaries,
@@ -789,7 +801,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         : null,
     );
     rowsProjectionRef.current = { threadKey: listIdentityKey, workspaceRoot, projection };
-    return projection.rows;
+    return AcePreviewEnabled
+      ? PlaceAceWorkingStatus(AceToolTimeline.ProjectAceToolTimeline(projection.rows))
+      : projection.rows;
   }, [
     rowsProjectionRef,
     listIdentityKey,
@@ -1656,6 +1670,24 @@ function TimelineMinimapNavigationButton({
 type TimelineWorkEntry = Extract<MessagesTimelineRow, { kind: "work" }>["groupedEntries"][number];
 type TimelineRow = MessagesTimelineRow;
 
+function PlaceAceWorkingStatus(Rows: MessagesTimelineRow[]): MessagesTimelineRow[] {
+  const Working = Rows.find((Row) => Row.kind === "working");
+  if (
+    !Working ||
+    Rows.some(
+      (Row) => Row.kind === "worktree-setup" && !Row.embedded && Row.snapshot.phase === "running",
+    )
+  ) {
+    return Rows;
+  }
+  const Result: MessagesTimelineRow[] = Rows.filter(
+    (Row) => Row.kind !== "working" && Row.kind !== "thinking",
+  );
+  const QueuedIndex = Result.findIndex((Row) => Row.kind === "queued-message");
+  Result.splice(QueuedIndex < 0 ? Result.length : QueuedIndex, 0, Working);
+  return Result;
+}
+
 const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: TimelineRow }) {
   const isExpandedToolGroup = row.kind === "work" && row.isExpandedToolGroup;
   const isExpandedToolGroupHeader =
@@ -2513,6 +2545,15 @@ function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "workin
     "Setting up worktree…"
   ) : isCompacting ? (
     <CompactingLabel />
+  ) : AcePreviewEnabled ? (
+    <>
+      Thinking…
+      {row.createdAt ? (
+        <span className="AceWorkingElapsed">
+          <WorkingTimer createdAt={row.createdAt} />
+        </span>
+      ) : null}
+    </>
   ) : row.createdAt ? (
     <>
       Working for <WorkingTimer createdAt={row.createdAt} />
@@ -2521,11 +2562,22 @@ function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "workin
     "Working..."
   );
   return (
-    <div className="border-b border-border/60 pb-2 pt-1">
+    <div
+      data-ace-working-header={AcePreviewEnabled ? "" : undefined}
+      className="border-b border-border/60 pb-2 pt-1"
+    >
       <div className="flex h-6 min-w-0 items-baseline gap-2 px-1 text-sm leading-relaxed text-muted-foreground tabular-nums">
+        {AcePreviewEnabled && !shimmer ? (
+          <span className="AceWorkingMark" aria-hidden="true">
+            ⋯
+          </span>
+        ) : null}
         <span
           ref={shimmer ? observeVisibleAnimation : undefined}
-          className="relative shrink-0 overflow-hidden whitespace-nowrap"
+          className={cn(
+            "relative shrink-0 overflow-hidden whitespace-nowrap",
+            AcePreviewEnabled && "AceWorkingText",
+          )}
         >
           {label}
           {shimmer ? <ActivityShimmerOverlay>{label}</ActivityShimmerOverlay> : null}
@@ -2585,6 +2637,9 @@ function ActivityGroupTimelineRow({
   row: Extract<TimelineRow, { kind: "activity-group" }>;
 }) {
   const ctx = use(TimelineRowCtx);
+  if (AcePreviewEnabled) {
+    return <AceActivityGroupTimelineRow key={`${ctx.routeThreadKey}:${row.groupId}`} Row={row} />;
+  }
   const work = omitSupersededLifecycleMarkers(
     row.entries.flatMap((entry) =>
       entry.kind === "work" && workEntryIsVisibleInGroup(entry.entry, row.active)
@@ -2661,42 +2716,127 @@ function ActivityGroupTimelineRow({
     }
   }
   return (
-    <div data-ace-activity-group={AcePreviewEnabled ? "" : undefined}>
+    <div>
       <button
         type="button"
         className="group/live-work flex min-h-6 w-full max-w-full cursor-pointer items-center rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
         aria-expanded={row.expanded}
         onClick={() => ctx.onToggleWorkGroup(row.groupId, row.id)}
       >
-        {AcePreviewEnabled ? (
-          <>
-            <ChevronRightIcon
-              className={cn(
-                "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-                row.expanded && "rotate-90",
-              )}
-            />
-            <span className="truncate text-[13px] text-secondary-label">{label}</span>
-            {row.active && (
-              <span
-                className="ml-1 size-1.5 shrink-0 rounded-full bg-primary/65"
-                aria-label="Working"
-              />
-            )}
-          </>
-        ) : (
-          <LiveActivityRow
-            label={label}
-            iconName={iconWork ? workEntryIconName(iconWork) : "brain"}
-            toolIcon={iconWork?.toolIcon ?? iconWork?.toolSource?.icon}
-            active={row.active}
-            shimmer={thinking}
-          />
-        )}
+        <LiveActivityRow
+          label={label}
+          iconName={iconWork ? workEntryIconName(iconWork) : "brain"}
+          toolIcon={iconWork?.toolIcon ?? iconWork?.toolSource?.icon}
+          active={row.active}
+          shimmer={thinking}
+        />
       </button>
       {row.expanded ? <div className="mt-2 space-y-2">{details}</div> : null}
     </div>
   );
+}
+
+function AceActivityGroupTimelineRow({
+  Row,
+}: {
+  Row: Extract<TimelineRow, { kind: "activity-group" }>;
+}) {
+  const Ctx = use(TimelineRowCtx);
+  const [Pinned, SetPinned] = useState(
+    () =>
+      Ctx.workGroupViewState.AceToolFolds?.get(Row.groupId) ?? (Row.expanded ? true : undefined),
+  );
+  const Open = AceToolTimeline.ResolveAceToolGroupOpen(Row.active, Pinned);
+  const DetailsId = useId();
+  const Work = useMemo(
+    () =>
+      omitSupersededLifecycleMarkers(
+        Row.entries.flatMap((Entry) =>
+          Entry.kind === "work" && workEntryIsVisibleInGroup(Entry.entry, Row.active)
+            ? [Entry.entry]
+            : [],
+        ),
+        (Entry) => Entry,
+      ),
+    [Row.entries, Row.active],
+  );
+  const ThoughtCount = Row.entries.filter((Entry) => Entry.kind === "message").length;
+  const Summary = AceToolPresentation.SummarizeAceToolGroup(Work);
+  const Label = ThoughtCount
+    ? `${ThoughtCount > 1 ? `Thought ${ThoughtCount} times` : "Thought process"}${Summary ? ` · ${Summary.charAt(0).toLowerCase()}${Summary.slice(1)}` : ""}`
+    : Summary || "Working";
+  return (
+    <div className="AceToolGroup" data-ace-activity-group data-active={Row.active}>
+      <button
+        type="button"
+        className="AceToolGroupHeader"
+        aria-expanded={Open}
+        aria-controls={DetailsId}
+        onClick={() => {
+          Ctx.onToggleWorkEntry(Row.id, Open, 240);
+          (Ctx.workGroupViewState.AceToolFolds ??= new Map()).set(Row.groupId, !Open);
+          SetPinned(!Open);
+        }}
+      >
+        <span className="AceToolGroupChevron">
+          <ChevronRightIcon aria-hidden size={14} />
+        </span>
+        <span className="AceToolGroupSummary">{Label}</span>
+      </button>
+      <AceToolDisclosure
+        Open={Open}
+        Id={DetailsId}
+        Children={<AceActivityGroupDetails Row={Row} />}
+      />
+    </div>
+  );
+}
+
+function AceActivityGroupDetails({
+  Row,
+}: {
+  Row: Extract<TimelineRow, { kind: "activity-group" }>;
+}) {
+  const Details: ReactNode[] = [];
+  for (let Index = 0; Index < Row.entries.length; Index += 1) {
+    const Entry = Row.entries[Index]!;
+    if (Entry.kind === "work") {
+      const Entries = [Entry.entry];
+      while (Row.entries[Index + 1]?.kind === "work") {
+        const Next = Row.entries[++Index]!;
+        if (Next.kind === "work") Entries.push(Next.entry);
+      }
+      Details.push(
+        <WorkGroupSection
+          key={AceToolTimeline.AceToolEntryKey(Entry.entry)}
+          anchorKey={`${Row.groupId}:${Entry.entry.toolCallId ?? Entry.id}`}
+          disclosureAnchorKey={Row.id}
+          groupedEntries={omitSupersededLifecycleMarkers(Entries, (Item) => Item)}
+          isExpandedToolGroup
+          AceContinues={Index < Row.entries.length - 1}
+        />,
+      );
+    } else {
+      Details.push(
+        <div key={Entry.id} className="AceToolThought" data-last={Index === Row.entries.length - 1}>
+          <ReasoningTimelineRow
+            disclosureAnchorKey={Row.id}
+            row={{
+              kind: "message",
+              id: Row.active && Index === Row.entries.length - 1 ? LIVE_ACTIVITY_ROW_ID : Entry.id,
+              createdAt: Entry.createdAt,
+              message: Entry.message,
+              durationStart: Entry.createdAt,
+              showAssistantMeta: false,
+              showAssistantCopyButton: false,
+              assistantCopyStreaming: false,
+            }}
+          />
+        </div>,
+      );
+    }
+  }
+  return Details;
 }
 
 function ThinkingTimelineRow() {
@@ -2850,12 +2990,14 @@ const WorkGroupSection = memo(function WorkGroupSection({
   groupedEntries,
   isExpandedToolGroup,
   displayLabel,
+  AceContinues = false,
 }: {
   anchorKey: string;
   disclosureAnchorKey?: string;
   groupedEntries: Extract<MessagesTimelineRow, { kind: "work" }>["groupedEntries"];
   isExpandedToolGroup: boolean;
   displayLabel?: string | undefined;
+  AceContinues?: boolean;
 }) {
   const { workspaceRoot, routeThreadKey, onToggleWorkEntry } = use(TimelineRowCtx);
   const onToggleStandaloneEntry = useCallback(
@@ -2876,6 +3018,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
         disclosureAnchorKey={disclosureAnchorKey}
         entries={nonEmptyEntries}
         workspaceRoot={workspaceRoot}
+        AceContinues={AceContinues}
       />
     );
   }
@@ -2903,11 +3046,13 @@ function ExpandedWorkGroupEntries({
   disclosureAnchorKey,
   entries,
   workspaceRoot,
+  AceContinues,
 }: {
   anchorKey: string;
   disclosureAnchorKey: string;
   entries: TimelineWorkEntry[];
   workspaceRoot: string | undefined;
+  AceContinues: boolean;
 }) {
   const { workGroupViewState: viewState, onToggleWorkEntry } = use(TimelineRowCtx);
   const [initialScrollIndex] = useState(() =>
@@ -2991,15 +3136,22 @@ function ExpandedWorkGroupEntries({
   }, [updateScrollFades]);
 
   const renderEntry = useCallback(
-    ({ item }: { item: TimelineWorkEntry }) => (
+    ({ item, index }: { item: TimelineWorkEntry; index: number }) => (
       <SimpleWorkEntryRow
-        key={item.id}
+        key={workEntryKey(item)}
         workEntry={item}
         workspaceRoot={workspaceRoot}
         isExpandedToolGroupEntry
+        AceTreePosition={
+          AcePreviewEnabled
+            ? index === entries.length - 1 && !AceContinues
+              ? "last"
+              : "middle"
+            : undefined
+        }
       />
     ),
-    [workspaceRoot],
+    [workspaceRoot, entries.length, AceContinues],
   );
 
   return (
@@ -3010,7 +3162,7 @@ function ExpandedWorkGroupEntries({
         extraData={workspaceRoot}
         keyExtractor={workEntryKey}
         renderItem={renderEntry}
-        estimatedItemSize={24}
+        estimatedItemSize={AcePreviewEnabled ? 36 : 24}
         drawDistance={240}
         recycleItems
         {...(initialScrollIndex ? { initialScrollIndex } : {})}
@@ -3033,6 +3185,7 @@ function ExpandedWorkGroupEntries({
         data-tool-group-scroll
         className={cn(
           "scrollbar-gutter-stable max-h-[min(18rem,50dvh)] scroll-py-6 overflow-x-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+          AcePreviewEnabled && "AceToolTree",
           getVirtualizedScrollFadeClassName(fades),
         )}
       />
@@ -3040,7 +3193,8 @@ function ExpandedWorkGroupEntries({
   );
 }
 
-const workEntryKey = (entry: TimelineWorkEntry) => entry.id;
+const workEntryKey = (entry: TimelineWorkEntry) =>
+  AcePreviewEnabled ? AceToolTimeline.AceToolEntryKey(entry) : entry.id;
 
 function ActivityShimmerOverlay({ children }: { children: ReactNode }) {
   return (
@@ -4699,6 +4853,7 @@ const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
   isExpandedToolGroupEntry: boolean;
   displayLabel?: string | undefined;
   onToggleEntry?: ((collapsed: boolean) => void) | undefined;
+  AceTreePosition?: "middle" | "last" | undefined;
 }) {
   const { workEntry, workspaceRoot, isExpandedToolGroupEntry, displayLabel } = props;
   // Before any hooks: spawn rows render their own component.
@@ -4718,6 +4873,7 @@ const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
       isExpandedToolGroupEntry={isExpandedToolGroupEntry}
       displayLabel={displayLabel}
       onToggleEntry={props.onToggleEntry}
+      AceTreePosition={props.AceTreePosition}
     />
   );
 });
@@ -4728,19 +4884,21 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
   isExpandedToolGroupEntry: boolean;
   displayLabel?: string | undefined;
   onToggleEntry?: ((collapsed: boolean) => void) | undefined;
+  AceTreePosition?: "middle" | "last" | undefined;
 }) {
   const { workEntry, workspaceRoot, isExpandedToolGroupEntry, displayLabel } = props;
-  const { threadRef, onImageExpand, timestampFormat } = use(TimelineRowCtx);
+  const { threadRef, onImageExpand, timestampFormat, resolvedTheme } = use(TimelineRowCtx);
   const groupView = use(WorkGroupViewCtx);
+  const EntryKey = workEntryKey(workEntry);
   const [expanded, setExpanded] = useState(
-    () => groupView?.state.expandedEntries.has(workEntry.id) ?? false,
+    () => groupView?.state.expandedEntries.has(EntryKey) ?? false,
   );
   const toggleExpanded = () => {
     const next = !expanded;
     if (groupView) {
       groupView.onToggleEntry(!next);
-      if (next) groupView.state.expandedEntries.add(workEntry.id);
-      else groupView.state.expandedEntries.delete(workEntry.id);
+      if (next) groupView.state.expandedEntries.add(EntryKey);
+      else groupView.state.expandedEntries.delete(EntryKey);
     } else {
       props.onToggleEntry?.(!next);
     }
@@ -4759,6 +4917,19 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
       ? undefined
       : (workEntry.toolIcon ?? workEntry.toolSource?.icon);
   const previewText = displayLabel ?? workEntryDisplayLabel(workEntry, workspaceRoot);
+  const AcePresentation =
+    AcePreviewEnabled &&
+    !workEntry.questionAnswer &&
+    !showWarningIndicator &&
+    !showDestructiveRowStyle &&
+    !workEntry.sourceActivityKind?.includes("approval")
+      ? AceToolPresentation.ResolveAceToolPresentation(workEntry)
+      : null;
+  const VisibleLabel = AcePresentation
+    ? [AcePresentation.Label, ...AcePresentation.Paths, AcePresentation.Detail]
+        .filter(Boolean)
+        .join(" ")
+    : previewText;
   const answerPreview = workEntry.questionAnswer
     ? getQuestionAnswerPreview(workEntry.questionAnswer)
     : null;
@@ -4785,7 +4956,7 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
     ? buildToolCallExpandedBody(
         workEntry,
         workspaceRoot,
-        previewText,
+        VisibleLabel,
         viewedImage ? viewedImagePath : null,
       )
     : null;
@@ -4809,7 +4980,7 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
       : workLogEntryIsToolLike(workEntry)
         ? "text-secondary-label"
         : "text-foreground/80";
-  const accessiblePreview = [previewText, answerPreview].filter(Boolean).join(": ");
+  const accessiblePreview = [VisibleLabel, answerPreview].filter(Boolean).join(": ");
   const accessibleDisplayText = showFailedIndicator
     ? `${accessiblePreview}, tool call failed`
     : accessiblePreview;
@@ -4832,10 +5003,16 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
   return (
     <div
       data-ace-tool-row={AcePreviewEnabled ? "" : undefined}
+      data-ace-tool-tree-position={props.AceTreePosition}
+      data-ace-tool-active={
+        AcePreviewEnabled && workEntry.toolLifecycleStatus === "inProgress" ? "" : undefined
+      }
       className={cn(
         "group/timeline-row relative flex flex-col rounded-md px-0.5 transition-colors",
         isExpandedToolGroupEntry ? "py-0" : "py-0.5",
         expanded && "mb-1",
+        AcePreviewEnabled && "AceToolRow",
+        props.AceTreePosition && "AceToolTreeRow",
         canExpand &&
           "cursor-pointer hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
       )}
@@ -4847,12 +5024,16 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
           role={showFailedIndicator ? "img" : undefined}
           aria-label={showFailedIndicator ? "Tool call failed" : undefined}
         >
-          <ToolActivityIconView
-            icon={entryToolIcon}
-            fallbackName={entryIconName}
-            className="block size-4 shrink-0 stroke-[1.8]"
-            muted
-          />
+          {AcePresentation && AcePresentation.Kind !== "other" && !entryToolIcon ? (
+            <AceToolIcon Kind={AcePresentation.Kind} />
+          ) : (
+            <ToolActivityIconView
+              icon={entryToolIcon}
+              fallbackName={entryIconName}
+              className="block size-4 shrink-0 stroke-[1.8]"
+              muted
+            />
+          )}
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <div className="min-w-0 flex-1 overflow-hidden">
@@ -4866,8 +5047,8 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
                 onClick={expanded ? stopRowToggleWhileSelectingText : undefined}
                 onPointerDown={expanded ? stopRowToggle : undefined}
               >
-                {AcePreviewEnabled && !expanded ? (
-                  <AceToolLabel Label={previewText} />
+                {AcePresentation ? (
+                  <AceToolLabel Presentation={AcePresentation} Theme={resolvedTheme} />
                 ) : (
                   previewText
                 )}

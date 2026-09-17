@@ -1,0 +1,250 @@
+[data-ace-preview] [data-ace-working-header] {
+  border: 0;
+  padding: 8px 0 0;
+}
+
+[data-ace-preview] [data-ace-working-header] > div {
+  justify-content: flex-start;
+  gap: 8px;
+  height: 26px;
+  padding-inline: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+[data-ace-preview] .AceWorkingText {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+[data-ace-preview] .AceWorkingElapsed {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+[data-ace-preview] .AceWorkingMark {
+  width: 12px;
+  color: #c28d95;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+[data-ace-preview] .AceToolGroup[data-ace-activity-group] {
+  padding: 0;
+  color: var(--secondary-label, var(--muted-foreground));
+  font-size: 13px;
+  line-height: 20px;
+}
+
+[data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 4px 0 0;
+  border-radius: 5px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+[data-ace-preview] .AceToolGroupHeader:hover {
+  color: var(--foreground);
+  background: rgb(110 120 135 / 5%);
+}
+
+[data-ace-preview] .AceToolGroupHeader:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+[data-ace-preview] .AceToolGroupChevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex: none;
+  padding-left: 3px;
+}
+
+[data-ace-preview] .AceToolGroupChevron > svg {
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  stroke-width: 1.5;
+}
+
+[data-ace-preview] .AceToolGroupHeader[aria-expanded="true"] .AceToolGroupChevron > svg {
+  transform: rotate(90deg);
+}
+
+[data-ace-preview] .AceToolGroupSummary {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolFold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 180ms ease;
+  animation: none;
+}
+
+[data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolFold[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+[data-ace-preview] .AceToolFoldContent {
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-ace-preview] [data-tool-group-scroll].AceToolTree {
+  max-height: min(25rem, 50dvh);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  scrollbar-gutter: auto;
+}
+
+[data-ace-preview] .AceToolRow[data-ace-tool-row] {
+  min-height: 36px;
+  padding: 0;
+  border-radius: 5px;
+  margin-bottom: 0;
+}
+
+[data-ace-preview] .AceToolRow[data-ace-tool-row] > div:first-child {
+  min-height: 36px;
+  gap: 8px;
+}
+
+[data-ace-preview] .AceToolRow[data-ace-tool-row] > div:first-child > span:first-child {
+  width: 16px;
+  height: 20px;
+}
+
+[data-ace-preview] .AceToolRow[data-ace-tool-row] p {
+  align-items: center;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+[data-ace-preview] .AceToolTree .AceToolTreeRow[data-ace-tool-row] {
+  padding-left: 32px;
+}
+
+[data-ace-preview] .AceToolTree .AceToolTreeRow[data-ace-tool-row]::before,
+[data-ace-preview] .AceToolThought::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  left: 12px;
+  top: 0;
+  width: 16px;
+  height: 18px;
+  border-left: 1px solid rgb(110 120 132 / 25%);
+  border-bottom: 1px solid rgb(110 120 132 / 25%);
+  border-bottom-left-radius: 6px;
+}
+
+[data-ace-preview] .AceToolTreeRow[data-ace-tool-tree-position="middle"]::after,
+[data-ace-preview] .AceToolThought[data-last="false"]::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  left: 12px;
+  border-left: 1px solid rgb(110 120 132 / 25%);
+}
+
+[data-ace-preview] .AceToolThought {
+  position: relative;
+  min-height: 36px;
+  padding: 5px 0 5px 32px;
+}
+
+[data-ace-preview] .AceToolLabel {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+[data-ace-preview] .AceToolVerb {
+  flex: none;
+}
+
+[data-ace-preview] .AceToolDetail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-ace-preview] .AceToolFileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 23px;
+  min-width: 0;
+  max-width: 32ch;
+  padding: 0 6px 0 1px;
+  border-radius: 5px;
+  background: rgb(100 105 118 / 9%);
+  color: color-mix(in srgb, var(--foreground) 86%, transparent);
+}
+
+[data-ace-preview] .AceToolFileChip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-ace-preview] .AceToolFileIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  flex: none;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 22%);
+}
+
+[data-ace-preview] .AceToolRow > div:first-child > div > span:last-child {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+[data-ace-preview] .AceToolRow:hover > div:first-child > div > span:last-child,
+[data-ace-preview] .AceToolRow:focus-within > div:first-child > div > span:last-child,
+[data-ace-preview] .AceToolRow[aria-expanded="true"] > div:first-child > div > span:last-child {
+  opacity: 1;
+}
+
+[data-ace-preview] .AceToolTreeRow > div:not(:first-child) {
+  margin-left: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolFold {
+    transition: none;
+  }
+  [data-ace-preview] .AceToolGroupChevron > svg {
+    transition: none;
+  }
+}

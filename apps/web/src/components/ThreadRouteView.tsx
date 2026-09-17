@@ -3,7 +3,9 @@ import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { AcePreviewEnabled } from "../AcePreview";
 import ChatView from "./ChatView";
+import { AceChatBackdrop } from "./chat/AceChatBackdrop";
 import { resolveDraftPromotionNavigationTarget, threadHasStarted } from "./ChatView.logic";
 import { waitForDraftHeroTransition } from "./chat/draftHeroTransition";
 import { SidebarInset } from "./ui/sidebar";
@@ -46,6 +48,7 @@ import { resolveThreadSyncPhase } from "../threadSync";
  */
 export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
   const navigate = useNavigate();
+  const [AceEmpty, SetAceEmpty] = useState(false);
   const draftId = target.kind === "draft" ? target.draftId : null;
   const draftSession = useComposerDraftStore((store) =>
     draftId === null ? null : store.getDraftSession(draftId),
@@ -190,6 +193,7 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
           environmentId={draftSession.environmentId}
           threadId={draftSession.threadId}
           routeKind="draft"
+          {...(AcePreviewEnabled ? { AceOnEmptyChange: SetAceEmpty } : {})}
           forceExpandedMobileComposer
         />
       );
@@ -201,13 +205,19 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
         environmentId={target.threadRef.environmentId}
         threadId={target.threadRef.threadId}
         routeKind="server"
+        {...(AcePreviewEnabled ? { AceOnEmptyChange: SetAceEmpty } : {})}
         threadSyncPhase={threadSyncPhase}
       />
     );
   }
 
   return (
-    <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground md:h-dvh">
+    <SidebarInset
+      data-ace-canvas={AcePreviewEnabled ? "" : undefined}
+      data-ace-empty={AcePreviewEnabled ? AceEmpty : undefined}
+      className="h-svh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground md:h-dvh"
+    >
+      {AcePreviewEnabled && <AceChatBackdrop Empty={AceEmpty} />}
       {view}
     </SidebarInset>
   );

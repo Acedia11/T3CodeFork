@@ -1,0 +1,140 @@
+[data-ace-preview] .AceWallpaperSettings {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px;
+}
+
+[data-ace-preview] .AceWallpaperPreview {
+  position: relative;
+  flex: 0 0 196px;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--card);
+  outline: 1px solid rgb(100 120 140 / 15%);
+  outline-offset: -1px;
+}
+
+[data-ace-preview] .AceWallpaperPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mask-image: linear-gradient(to bottom, #000 24%, rgb(0 0 0 / 50%) 65%, transparent);
+}
+
+[data-ace-preview] .AceWallpaperPreviewComposer {
+  position: absolute;
+  top: 47%;
+  left: 23%;
+  width: 54%;
+  height: 20%;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--card) 65%, transparent);
+  box-shadow:
+    0 0 0 0.5px rgb(100 120 140 / 16%),
+    0 3px 12px rgb(40 60 80 / 5%);
+}
+
+[data-ace-preview] .AceWallpaperDetails {
+  min-width: 0;
+}
+
+[data-ace-preview] .AceWallpaperName {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+[data-ace-preview] .AceWallpaperDescription {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+[data-ace-preview] .AceWallpaperActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+[data-ace-preview] .AceWallpaperAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px 0 10px;
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px rgb(100 120 140 / 16%),
+    0 1px 3px rgb(40 60 80 / 5%);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    scale 150ms ease;
+}
+
+[data-ace-preview] .AceWallpaperAction[data-secondary] {
+  color: var(--muted-foreground);
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-ace-preview] .AceWallpaperAction:hover:enabled {
+  background: var(--accent);
+}
+
+[data-ace-preview] .AceWallpaperAction:active:enabled {
+  scale: 0.96;
+}
+
+[data-ace-preview] .AceWallpaperAction:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+[data-ace-preview] .AceWallpaperAction:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+[data-ace-preview] .AceWallpaperHint {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+[data-ace-preview] .AceWallpaperFailure {
+  margin-top: 8px;
+  color: var(--destructive);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  [data-ace-preview] .AceWallpaperSettings {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  [data-ace-preview] .AceWallpaperPreview {
+    flex-basis: auto;
+    max-width: 280px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ace-preview] .AceWallpaperAction {
+    transition: none;
+  }
+
+  [data-ace-preview] .AceWallpaperAction:active:enabled {
+    scale: 1;
+  }
+}

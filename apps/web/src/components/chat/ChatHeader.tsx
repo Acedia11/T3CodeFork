@@ -4,6 +4,7 @@ import {
   type ProjectScript,
   type ResolvedKeybindingsConfig,
   type ThreadId,
+  type ProviderDriverKind,
 } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
@@ -11,7 +12,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, EllipsisIcon, PlusIcon } from "lucide-react";
 import {
   memo,
   useCallback,
@@ -21,7 +22,11 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type ComponentProps,
 } from "react";
+import { AcePreviewEnabled } from "../../AcePreview";
+import { PROVIDER_ICON_BY_PROVIDER } from "./providerIconUtils";
+import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import GitActionsControl from "../GitActionsControl";
 import { isTrailingDoubleClick } from "../Sidebar.logic";
 import { type DraftId } from "~/composerDraftStore";
@@ -49,6 +54,7 @@ import {
 import { cn } from "~/lib/utils";
 
 interface ChatHeaderProps {
+  AceProvider?: ProviderDriverKind | undefined;
   activeThreadEnvironmentId: EnvironmentId;
   activeThreadId: ThreadId;
   draftId?: DraftId;
@@ -119,6 +125,7 @@ export function shouldShowOpenInPicker(input: {
 }
 
 export const ChatHeader = memo(function ChatHeader({
+  AceProvider,
   activeThreadEnvironmentId,
   activeThreadId,
   draftId,
@@ -143,7 +150,9 @@ export const ChatHeader = memo(function ChatHeader({
   const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
     usePanelAnimationSettings();
   const headerActionsRef = useRef<HTMLDivElement | null>(null);
+  const AceProviderIcon = AceProvider ? PROVIDER_ICON_BY_PROVIDER[AceProvider] : undefined;
   useEffect(() => {
+    if (AcePreviewEnabled) return;
     const actions = headerActionsRef.current;
     const container = actions?.parentElement;
     if (!actions || !container) return;
@@ -315,8 +324,19 @@ export const ChatHeader = memo(function ChatHeader({
   return (
     <div
       className="@container/header-actions flex min-w-0 flex-1 items-center gap-2 sm:gap-3"
+      data-ace-thread-header={AcePreviewEnabled ? "" : undefined}
       onContextMenu={handleHeaderContextMenu}
     >
+      {AcePreviewEnabled && (
+        <button
+          type="button"
+          className="AceChromeButton AceNewThread"
+          aria-label="New thread in this project"
+          onClick={onNewThreadInProject}
+        >
+          <PlusIcon aria-hidden="true" />
+        </button>
+      )}
       <WorkspaceBreadcrumb
         ariaLabel="Thread breadcrumb"
         className="flex-1 overflow-clip [overflow-clip-margin:2px]"
@@ -348,6 +368,9 @@ export const ChatHeader = memo(function ChatHeader({
           </>
         ) : null}
         <WorkspaceBreadcrumbItem current className="min-w-10 flex-1">
+          {AcePreviewEnabled && AceProviderIcon && (
+            <AceProviderIcon className="AceTitleProvider" aria-hidden="true" />
+          )}
           {renamingTitle !== null ? (
             <input
               autoFocus
@@ -400,7 +423,7 @@ export const ChatHeader = memo(function ChatHeader({
           )}
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
-      <div
+      <AceHeaderActions
         ref={headerActionsRef}
         data-chat-header-actions
         className={cn(
@@ -437,7 +460,23 @@ export const ChatHeader = memo(function ChatHeader({
             {...(draftId ? { draftId } : {})}
           />
         )}
-      </div>
+      </AceHeaderActions>
     </div>
   );
 });
+
+function AceHeaderActions({ children, ...Props }: ComponentProps<"div">) {
+  if (!AcePreviewEnabled) return <div {...Props}>{children}</div>;
+  return (
+    <Popover>
+      <PopoverTrigger className="AceChromeButton AceProjectMenu" aria-label="Project actions">
+        <EllipsisIcon aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverPopup keepMounted align="end" className="AceProjectActionsPopup">
+        <div {...Props} className="AceProjectActions">
+          {children}
+        </div>
+      </PopoverPopup>
+    </Popover>
+  );
+}

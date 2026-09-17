@@ -48,6 +48,8 @@ import * as Duration from "effect/Duration";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
 import { APP_VERSION, HOSTED_APP_CHANNEL, HOSTED_APP_CHANNEL_LABEL } from "../../branding";
+import { AcePreviewEnabled } from "../../AcePreview";
+import { AceWallpaperSettings } from "./AceWallpaperSettings";
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
@@ -1191,6 +1193,8 @@ export function AppearanceSettingsPanel() {
           />
         </div>
       </SettingsSection>
+
+      {AcePreviewEnabled && <AceWallpaperSettings />}
 
       <SettingsSection id="appearance-interface" title="Interface">
         <SettingsRow

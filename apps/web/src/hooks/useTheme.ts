@@ -1,4 +1,5 @@
 import type { DesktopBridge } from "@t3tools/contracts";
+import { AcePreviewEnabled } from "../AcePreview";
 import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
@@ -304,8 +305,9 @@ export function syncBrowserChromeTheme() {
   const backgroundColor = themeChromeColor ?? surfaceColor ?? fallbackColor;
   if (!backgroundColor) return;
 
-  document.documentElement.style.backgroundColor = backgroundColor;
-  document.body.style.backgroundColor = backgroundColor;
+  const AceSurfaceColor = AcePreviewEnabled ? "transparent" : backgroundColor;
+  document.documentElement.style.backgroundColor = AceSurfaceColor;
+  document.body.style.backgroundColor = AceSurfaceColor;
   // Update every theme-color meta so any element another layer added (for
   // example a media-scoped one) carries the resolved color too.
   const themeColorMetas = document.querySelectorAll<HTMLMetaElement>(
