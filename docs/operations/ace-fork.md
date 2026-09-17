@@ -26,7 +26,8 @@ open '/Applications/T3 Code (Ace).app'
 The existing startup, periodic, and manual update checks run the bundled fork
 updater. It follows published macOS Nightly releases, checks the Git merge,
 builds a source archive in a temporary directory, runs targeted updater tests,
-typechecks desktop and web, and launches the packaged app with an isolated profile.
+typechecks desktop and web, and launches the packaged app with an isolated profile
+and a mock Keychain. Startup validation has a two-minute host timeout.
 Only after those checks pass does it advance and push the primary `main` and
 offer the app for installation. No Git branches or worktrees are used for builds.
 
@@ -34,6 +35,17 @@ Uncommitted edits pause updates. Conflicts and failed builds leave your checkout
 and installed app unchanged. A failed push retains the validated candidate for
 retry. Updates never restart active work automatically; installation waits for
 you to quit or choose the existing restart action.
+
+A failed build pauses repeated attempts for the same source, Nightly, and build
+configuration. Fixing and committing the source or receiving a newer Nightly
+allows another attempt. To retry unchanged inputs after a transient failure:
+
+```sh
+python3 ForkTools/Updater.py prepare --retry
+```
+
+The app's update check continues to show the failure until those inputs change
+or you run that retry command. The local `build` command also retries explicitly.
 
 Preparing a new release runs a local build, so it uses CPU and disk for several
 minutes. Quitting during preparation cancels that build; the next check retries.
@@ -58,3 +70,5 @@ are not silently omitted. These are public build settings, not account tokens.
 The app uses a local installer because this Mac has no release signing identity.
 It never downloads official binaries over your custom app. macOS may ask you to
 allow the locally built application access to its existing Keychain entry.
+That permission can be requested again after installing a newly built version;
+background validation copies never need access to the real Keychain.

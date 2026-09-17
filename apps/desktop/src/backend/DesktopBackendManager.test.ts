@@ -193,87 +193,102 @@ function makeTestInstance(input: MakeInstanceInput) {
 }
 
 describe("DesktopBackendManager", () => {
-  it.effect("spawns the backend with fd3 bootstrap and fd4 telemetry", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        let spawnedCommand: ChildProcess.Command | undefined;
-        let bootstrapJson = "";
-        let telemetryJson = "";
-        let readyCount = 0;
-        const ready = yield* Deferred.make<void>();
-        const exited = yield* Queue.unbounded<void>();
-
-        const spawnerLayer = Layer.succeed(
-          ChildProcessSpawner.ChildProcessSpawner,
-          ChildProcessSpawner.make((command) =>
-            Effect.gen(function* () {
-              spawnedCommand = command;
-              if (command._tag === "StandardCommand") {
-                const fd3 = command.options.additionalFds?.fd3;
-                if (fd3?.type === "input" && fd3.stream) {
-                  bootstrapJson = yield* fd3.stream.pipe(Stream.decodeText(), Stream.mkString);
-                }
-                const fd4 = command.options.additionalFds?.fd4;
-                if (fd4?.type === "input" && fd4.stream) {
-                  telemetryJson = yield* fd4.stream.pipe(Stream.decodeText(), Stream.mkString);
-                }
-              }
-
-              return makeProcess({
-                exitCode: Deferred.await(ready).pipe(Effect.as(ChildProcessSpawner.ExitCode(0))),
-              });
+  it.effect.each([undefined, "1"])(
+    "spawns the backend with fd3 bootstrap and fd4 telemetry (smoke=%s)",
+    (ForkSmoke) =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const Previous = process.env.T3CODE_FORK_SMOKE;
+          yield* Effect.acquireRelease(
+            Effect.sync(() => {
+              if (ForkSmoke === undefined) delete process.env.T3CODE_FORK_SMOKE;
+              else process.env.T3CODE_FORK_SMOKE = ForkSmoke;
             }),
-          ),
-        );
+            () =>
+              Effect.sync(() => {
+                if (Previous === undefined) delete process.env.T3CODE_FORK_SMOKE;
+                else process.env.T3CODE_FORK_SMOKE = Previous;
+              }),
+          );
+          let spawnedCommand: ChildProcess.Command | undefined;
+          let bootstrapJson = "";
+          let telemetryJson = "";
+          let readyCount = 0;
+          const ready = yield* Deferred.make<void>();
+          const exited = yield* Queue.unbounded<void>();
 
-        const instance = yield* makeTestInstance({
-          config: {
-            ...baseConfig,
-            bootstrap: configWithObservability,
-          },
-          spawnerLayer,
-          desktopTelemetryStream: Stream.encodeText(
-            Stream.make('{"version":1,"type":"desktopTelemetryHello","electronPid":123}\n'),
-          ),
-          onReady: Effect.sync(() => {
-            readyCount += 1;
-          }).pipe(Effect.andThen(Deferred.succeed(ready, void 0)), Effect.asVoid),
-          backendOutputLog: {
-            persistFailure: () => Queue.offer(exited, void 0).pipe(Effect.asVoid),
-          },
-        });
+          const spawnerLayer = Layer.succeed(
+            ChildProcessSpawner.ChildProcessSpawner,
+            ChildProcessSpawner.make((command) =>
+              Effect.gen(function* () {
+                spawnedCommand = command;
+                if (command._tag === "StandardCommand") {
+                  const fd3 = command.options.additionalFds?.fd3;
+                  if (fd3?.type === "input" && fd3.stream) {
+                    bootstrapJson = yield* fd3.stream.pipe(Stream.decodeText(), Stream.mkString);
+                  }
+                  const fd4 = command.options.additionalFds?.fd4;
+                  if (fd4?.type === "input" && fd4.stream) {
+                    telemetryJson = yield* fd4.stream.pipe(Stream.decodeText(), Stream.mkString);
+                  }
+                }
 
-        yield* instance.start;
-        yield* Queue.take(exited);
+                return makeProcess({
+                  exitCode: Deferred.await(ready).pipe(Effect.as(ChildProcessSpawner.ExitCode(0))),
+                });
+              }),
+            ),
+          );
 
-        assert.equal(readyCount, 1);
-        assert.isDefined(spawnedCommand);
-        if (spawnedCommand._tag !== "StandardCommand") {
-          throw new Error("Expected backend to spawn a standard command.");
-        }
+          const instance = yield* makeTestInstance({
+            config: {
+              ...baseConfig,
+              bootstrap: configWithObservability,
+            },
+            spawnerLayer,
+            desktopTelemetryStream: Stream.encodeText(
+              Stream.make('{"version":1,"type":"desktopTelemetryHello","electronPid":123}\n'),
+            ),
+            onReady: Effect.sync(() => {
+              readyCount += 1;
+            }).pipe(Effect.andThen(Deferred.succeed(ready, void 0)), Effect.asVoid),
+            backendOutputLog: {
+              persistFailure: () => Queue.offer(exited, void 0).pipe(Effect.asVoid),
+            },
+          });
 
-        assert.equal(spawnedCommand.command, "/electron");
-        assert.deepEqual(spawnedCommand.args, ["/server/bin.mjs", "--bootstrap-fd", "3"]);
-        assert.equal(spawnedCommand.options.cwd, "/server");
-        assert.equal(spawnedCommand.options.extendEnv, true);
-        assert.equal(spawnedCommand.options.stdout, "pipe");
-        assert.equal(spawnedCommand.options.stderr, "pipe");
-        assert.equal(spawnedCommand.options.killSignal, "SIGTERM");
-        assert.isDefined(spawnedCommand.options.forceKillAfter);
-        assert.equal(spawnedCommand.options.additionalFds?.fd4?.type, "input");
-        assert.equal(spawnedCommand.options.additionalFds?.fd5?.type, "output");
-        assert.equal(
-          Duration.toMillis(Duration.fromInputUnsafe(spawnedCommand.options.forceKillAfter)),
-          2_000,
-        );
+          yield* instance.start;
+          yield* Queue.take(exited);
 
-        assert.deepEqual(yield* decodeBootstrap(bootstrapJson), configWithObservability);
-        assert.equal(
-          telemetryJson,
-          '{"version":1,"type":"desktopTelemetryHello","electronPid":123}\n',
-        );
-      }),
-    ),
+          assert.equal(readyCount, 1);
+          assert.isDefined(spawnedCommand);
+          if (spawnedCommand._tag !== "StandardCommand") {
+            throw new Error("Expected backend to spawn a standard command.");
+          }
+
+          assert.equal(spawnedCommand.command, "/electron");
+          assert.deepEqual(spawnedCommand.args, ["/server/bin.mjs", "--bootstrap-fd", "3"]);
+          assert.equal(spawnedCommand.options.cwd, "/server");
+          assert.equal(spawnedCommand.options.extendEnv, true);
+          assert.equal(spawnedCommand.options.detached, ForkSmoke === "1" ? false : undefined);
+          assert.equal(spawnedCommand.options.stdout, "pipe");
+          assert.equal(spawnedCommand.options.stderr, "pipe");
+          assert.equal(spawnedCommand.options.killSignal, "SIGTERM");
+          assert.isDefined(spawnedCommand.options.forceKillAfter);
+          assert.equal(spawnedCommand.options.additionalFds?.fd4?.type, "input");
+          assert.equal(spawnedCommand.options.additionalFds?.fd5?.type, "output");
+          assert.equal(
+            Duration.toMillis(Duration.fromInputUnsafe(spawnedCommand.options.forceKillAfter)),
+            2_000,
+          );
+
+          assert.deepEqual(yield* decodeBootstrap(bootstrapJson), configWithObservability);
+          assert.equal(
+            telemetryJson,
+            '{"version":1,"type":"desktopTelemetryHello","electronPid":123}\n',
+          );
+        }),
+      ),
   );
 
   it.effect("preserves the readiness timeout cause and process context", () =>

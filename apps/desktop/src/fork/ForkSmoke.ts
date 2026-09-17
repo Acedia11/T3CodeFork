@@ -10,7 +10,12 @@ export function InitializeForkSmoke(): void {
   const Home = process.env.T3CODE_HOME;
   if (!Home || !NodePath.isAbsolute(Home))
     throw new Error("Fork smoke tests require an isolated T3CODE_HOME.");
-  const Timeout = NodeTimers.setTimeout(() => app.exit(1), 90_000);
+  const Fail = (Error: unknown) => {
+    process.stderr.write(String(Error) + "\n");
+    NodeTimers.clearTimeout(Timeout);
+    app.quit();
+  };
+  const Timeout = NodeTimers.setTimeout(() => Fail(new Error("Smoke test timed out")), 90_000);
   app.on("browser-window-created", (_Event, Window) => {
     Window.on("show", () => Window.hide());
     Window.webContents.on("did-finish-load", () => {
@@ -36,10 +41,7 @@ export function InitializeForkSmoke(): void {
           NodeTimers.clearTimeout(Timeout);
           app.quit();
         })
-        .catch((Error: unknown) => {
-          process.stderr.write(String(Error) + "\n");
-          app.exit(1);
-        });
+        .catch(Fail);
     });
   });
 }

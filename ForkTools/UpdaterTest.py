@@ -1,8 +1,10 @@
 import json
+import os
 import plistlib
 import shutil
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -147,6 +149,90 @@ class UpdaterTests(unittest.TestCase):
             Result = self.Updater.Prepare("old")
             self.assertTrue(Result["Published"])
             Build.assert_not_called()
+
+    def test_FailedCandidateIsNotRebuiltByRepeatedChecks(self):
+        Release = self.Release()
+        with patch.object(self.Updater, "LatestNightly", return_value=Release), \
+             patch.object(self.Updater, "Build", side_effect=Updater.UpdateError("startup failed")) as Build:
+            with self.assertRaisesRegex(Updater.UpdateError, "startup failed"):
+                self.Updater.Prepare("old")
+            with self.assertRaisesRegex(Updater.UpdateError, "prepare --retry"):
+                self.Updater.Prepare("old")
+            self.assertEqual(Build.call_count, 1)
+            with self.assertRaisesRegex(Updater.UpdateError, "startup failed"):
+                self.Updater.Prepare("old", Retry=True)
+            self.assertEqual(Build.call_count, 2)
+
+    def test_ChangedBuildInputsAllowAnotherAttempt(self):
+        Release = self.Release()
+        with patch.object(self.Updater, "LatestNightly", return_value=Release), \
+             patch.object(self.Updater, "Build", side_effect=Updater.UpdateError("startup failed")) as Build:
+            def Attempt():
+                with self.assertRaisesRegex(Updater.UpdateError, "^startup failed$"):
+                    self.Updater.Prepare("old")
+            Attempt()
+            (self.Repo / "Fix.txt").write_text("fix")
+            self.Commit(self.Repo, "fix startup")
+            Attempt()
+            self.Config["PublicBuildEnvironment"] = {"T3CODE_RELAY_URL": "https://example.invalid"}
+            Attempt()
+            self.Tag = "v0.0.43-nightly.20260918.1"
+            (self.Upstream / "UpstreamFix.txt").write_text("upstream fix")
+            self.Commit(self.Upstream, "fix")
+            self.Git(self.Upstream, "tag", self.Tag)
+            Release["tag_name"] = self.Tag
+            Attempt()
+            self.assertEqual(Build.call_count, 4)
+
+    def test_CancelledBuildCanRetryAutomatically(self):
+        Release = self.Release()
+        with patch.object(self.Updater, "LatestNightly", return_value=Release), \
+             patch.object(self.Updater, "Build", side_effect=Updater.UpdateCancelled("cancelled")) as Build:
+            for _ in range(2):
+                with self.assertRaises(Updater.UpdateCancelled):
+                    self.Updater.Prepare("old")
+            self.assertEqual(Build.call_count, 2)
+        self.assertFalse((self.Updater.Cache / "FailedBuild.json").exists())
+
+    def test_SmokeUsesAnIsolatedProfileAndMockKeychain(self):
+        App = Path(self.FakeManifest("smoke")["App"])
+        def Launch(Arguments, Directory, Environment, Log, Timeout):
+            self.assertEqual(Arguments[1:], ["--use-mock-keychain"])
+            self.assertEqual(Timeout, 120)
+            Home = Path(Environment["T3CODE_HOME"])
+            self.assertTrue(Home.is_relative_to(self.Updater.Cache))
+            self.assertEqual(Environment["T3CODE_FORK_SMOKE"], "1")
+            self.assertEqual(Environment["T3CODE_DISABLE_AUTO_UPDATE"], "true")
+            self.assertNotIn("T3CODE_PORT", Environment)
+            self.assertNotIn("VITE_DEV_SERVER_URL", Environment)
+            (Home / "ForkSmokePassed.json").write_text("{}")
+        with patch.object(self.Updater, "BuildCommand", side_effect=Launch):
+            self.Updater.SmokeTest(App, self.Root / "Build.log")
+
+    def test_MissingSmokeReceiptFailsEvenOnCleanExit(self):
+        App = Path(self.FakeManifest("smoke")["App"])
+        with patch.object(self.Updater, "BuildCommand"):
+            with self.assertRaisesRegex(Updater.UpdateError, "did not finish"):
+                self.Updater.SmokeTest(App, self.Root / "Build.log")
+
+    def test_CommandTimeoutAndFailureStopOwnedChildren(self):
+        for ExitCode in [0, 1, None]:
+            with self.subTest(ExitCode=ExitCode):
+                Receipt = self.Root / "Stopped.txt"
+                Receipt.unlink(missing_ok=True)
+                Child = ("import os, signal, sys; from pathlib import Path; "
+                         "signal.signal(signal.SIGTERM, lambda *_: (Path(sys.argv[1]).write_text('stopped'), sys.exit(0))); "
+                         "print('ready', flush=True); signal.pause()")
+                Parent = ("import subprocess, sys, signal; "
+                          "Child=subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2]], stdout=subprocess.PIPE); "
+                          "Child.stdout.readline(); " + ("signal.pause()" if ExitCode is None else f"sys.exit({ExitCode})"))
+                Arguments = [sys.executable, "-c", Parent, Child, str(Receipt)]
+                if ExitCode == 0:
+                    self.Updater.BuildCommand(Arguments, self.Root, os.environ, self.Root / "Build.log", Timeout=1)
+                else:
+                    with self.assertRaisesRegex(Updater.UpdateError, "timed out" if ExitCode is None else "exit 1"):
+                        self.Updater.BuildCommand(Arguments, self.Root, os.environ, self.Root / "Build.log", Timeout=1)
+                self.assertEqual(Receipt.read_text(), "stopped")
 
     def test_ModifiedArtifactCannotInstall(self):
         Commit = self.Git(self.Repo, "rev-parse", "HEAD")

@@ -31,6 +31,10 @@ class UpdateError(Exception):
     pass
 
 
+class UpdateCancelled(UpdateError):
+    pass
+
+
 def Emit(Event, **Values):
     print(json.dumps({"Event": Event, **Values}), flush=True)
 
@@ -54,6 +58,22 @@ def Run(Arguments, Directory=None, Environment=None, Input=None, Check=True):
     if Check and Result.returncode:
         raise UpdateError((Result.stderr or Result.stdout).strip()[-6000:])
     return Result
+
+
+def StopProcessGroup(Process, Grace=10):
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(Process.pid, signal.SIGTERM)
+    Deadline = time.monotonic() + Grace
+    while time.monotonic() < Deadline:
+        Process.poll()
+        try:
+            os.killpg(Process.pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(Process.pid, signal.SIGKILL)
+    Process.wait()
 
 
 class ForkUpdater:
@@ -133,7 +153,7 @@ class ForkUpdater:
         return self.Git("commit-tree", Candidate["Tree"], "-p", Candidate["Base"], "-p", Candidate["UpstreamCommit"],
                         Input=f"chore(fork): sync {Candidate['Tag']}\n").stdout.strip()
 
-    def BuildCommand(self, Arguments, Directory, Environment, Log):
+    def BuildCommand(self, Arguments, Directory, Environment, Log, Timeout=3600):
         with Log.open("a") as Output:
             Output.write("\n" + " ".join(map(str, Arguments)) + "\n")
             Output.flush()
@@ -141,20 +161,11 @@ class ForkUpdater:
                                        env=Environment, stdout=Output, stderr=subprocess.STDOUT,
                                        start_new_session=True)
             try:
-                Code = Process.wait(timeout=3600)
-            except BaseException as Error:
-                with contextlib.suppress(ProcessLookupError):
-                    os.killpg(Process.pid, signal.SIGTERM)
-                try:
-                    Process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-                with contextlib.suppress(ProcessLookupError):
-                    os.killpg(Process.pid, signal.SIGKILL)
-                Process.wait()
-                if isinstance(Error, subprocess.TimeoutExpired):
-                    raise UpdateError(f"Build timed out. See {Log}") from Error
-                raise
+                Code = Process.wait(timeout=Timeout)
+            except subprocess.TimeoutExpired as Error:
+                raise UpdateError(f"Build command timed out after {Timeout}s. See {Log}") from Error
+            finally:
+                StopProcessGroup(Process)
         if Code:
             raise UpdateError(f"Build validation failed (exit {Code}). Your installed app is unchanged. See {Log}")
 
@@ -189,7 +200,7 @@ class ForkUpdater:
             self.BuildCommand(["corepack", "pnpm", "install", "--frozen-lockfile"], Source, Environment, Log)
             Emit("Progress", Percent=20)
             self.BuildCommand([sys.executable, "-m", "unittest", "discover", "-s", "ForkTools", "-p", "*Test.py"], Source, Environment, Log)
-            self.BuildCommand(["vp", "test", "run", "src/fork/ForkAutoUpdater.test.ts", "src/updates/updateMachine.test.ts", "src/updates/DesktopUpdates.test.ts"],
+            self.BuildCommand(["vp", "test", "run", "src/fork/ForkAutoUpdater.test.ts", "src/fork/ForkSmoke.test.ts", "src/updates/updateMachine.test.ts", "src/updates/DesktopUpdates.test.ts"],
                               Source / "apps/desktop", Environment, Log)
             self.BuildCommand(["vp", "run", "--filter", "@t3tools/desktop", "typecheck"], Source, Environment, Log)
             self.BuildCommand(["vp", "run", "--filter", "@t3tools/web", "typecheck"], Source, Environment, Log)
@@ -225,7 +236,8 @@ class ForkUpdater:
             Environment = dict(self.Environment, T3CODE_HOME=Temporary, T3CODE_FORK_SMOKE="1",
                                T3CODE_DISABLE_AUTO_UPDATE="true")
             Environment.pop("T3CODE_PORT", None)
-            self.BuildCommand([Executable], self.Repo, Environment, Log)
+            Environment.pop("VITE_DEV_SERVER_URL", None)
+            self.BuildCommand([Executable, "--use-mock-keychain"], self.Repo, Environment, Log, Timeout=120)
             if not (Path(Temporary) / "ForkSmokePassed.json").exists():
                 raise UpdateError(f"The packaged app did not finish its startup validation. See {Log}")
 
@@ -260,7 +272,7 @@ class ForkUpdater:
             raise UpdateError("The build is validated but its commit has not been pushed. Retry the update to publish main before installing.")
         return Manifest
 
-    def Prepare(self, CurrentVersion):
+    def Prepare(self, CurrentVersion, Retry=False):
         Head = self.RequireCleanMain()
         PendingPath = self.Cache / "Pending.json"
         if PendingPath.exists() and json.loads(PendingPath.read_text())["Commit"] != Head:
@@ -277,16 +289,33 @@ class ForkUpdater:
         if Candidate["Status"] == "current":
             if self.Config.get("InstalledCommit") == Candidate["Commit"] and CurrentVersion == Candidate["Version"]:
                 return Candidate
-            Emit("Available", Version=Candidate["Version"])
-            Manifest = self.Build(Candidate["Commit"], Candidate["Version"])
+
+        Inputs = {"Candidate": Candidate, "BuildPath": self.Config["BuildPath"],
+                  "PublicBuildEnvironment": self.Config.get("PublicBuildEnvironment", {})}
+        FailurePath = self.Cache / "FailedBuild.json"
+        if FailurePath.exists() and not Retry:
+            Failure = json.loads(FailurePath.read_text())
+            if Failure["Inputs"] == Inputs:
+                raise UpdateError(f"This update already failed validation; automatic rebuilds are paused. "
+                                  f"From {self.Repo}, run python3 ForkTools/Updater.py prepare --retry to retry.\n"
+                                  f"{Failure['Message']}")
+        Emit("Available", Version=Candidate["Version"])
+        Commit = Candidate["Commit"] if Candidate["Status"] == "current" else self.CandidateCommit(Candidate)
+        FailurePath.unlink(missing_ok=True)
+        try:
+            Manifest = self.Build(Commit, Candidate["Version"])
+        except UpdateCancelled:
+            raise
+        except Exception as Error:
+            WriteJson(FailurePath, {"Inputs": Inputs, "Message": str(Error)})
+            raise
+        FailurePath.unlink(missing_ok=True)
+        if Candidate["Status"] == "current":
             self.RequireCleanMain(Candidate["Commit"])
             WriteJson(self.Cache / "Pending.json", Manifest)
             self.PublishPrepared(Manifest)
-            return Manifest
-        Emit("Available", Version=Candidate["Version"])
-        Commit = self.CandidateCommit(Candidate)
-        Manifest = self.Build(Commit, Candidate["Version"])
-        self.Promote(Candidate, Manifest)
+        else:
+            self.Promote(Candidate, Manifest)
         return Manifest
 
 
@@ -385,9 +414,10 @@ def Main():
     Parser.add_argument("--current-version", default="")
     Parser.add_argument("--parent-pid", type=int, default=0)
     Parser.add_argument("--reopen", action="store_true")
+    Parser.add_argument("--retry", action="store_true", help="Retry a previously failed update build")
     Arguments = Parser.parse_args()
     def Cancel(Signum, Frame):
-        raise UpdateError("Fork update cancelled because the app is closing. Retry when it reopens.")
+        raise UpdateCancelled("Fork update cancelled because the app is closing. Retry when it reopens.")
     signal.signal(signal.SIGTERM, Cancel)
     try:
         Updater = ForkUpdater(json.loads(ConfigPath.read_text()))
@@ -395,7 +425,7 @@ def Main():
             if Arguments.Action == "check":
                 Result = Updater.Check()
             elif Arguments.Action == "prepare":
-                Result = Updater.Prepare(Arguments.current_version)
+                Result = Updater.Prepare(Arguments.current_version, Arguments.retry)
             elif Arguments.Action == "validate":
                 Result = Updater.Prepared()
                 if not Result:
