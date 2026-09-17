@@ -423,7 +423,13 @@ export const make = Effect.gen(function* () {
           )(function* (error) {
             const failedAt = yield* currentIsoTimestamp;
             yield* updateState((current) =>
-              reduceDesktopUpdateStateOnCheckFailure(current, error.message, failedAt),
+              reduceDesktopUpdateStateOnCheckFailure(
+                error.InvalidatesPreparedUpdate
+                  ? { ...current, availableVersion: null, downloadedVersion: null }
+                  : current,
+                error.message,
+                failedAt,
+              ),
             );
             yield* logUpdaterError(error.message, {
               errorTag: error._tag,

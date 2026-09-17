@@ -13,12 +13,38 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as ElectronUpdater from "../electron/ElectronUpdater.ts";
+import { ForkUpdateError } from "../fork/ForkAutoUpdater.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopUpdates from "./DesktopUpdates.ts";
 import { flushCallbacks, makeHarness } from "./updatesTestHarness.ts";
 
 describe("DesktopUpdates", () => {
+  it.effect("clears a prepared fork update when source validation fails", () => {
+    const Harness = makeHarness({
+      checkForUpdates: Effect.fail(
+        new ElectronUpdater.ElectronUpdaterCheckForUpdatesError({
+          channel: "nightly",
+          cause: new ForkUpdateError("Source changed and the merge conflicts"),
+        }),
+      ),
+    });
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const Updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* Updates.configure;
+        Harness.emit("update-downloaded", { version: "1.2.4" });
+        yield* flushCallbacks;
+        assert.equal((yield* Updates.getState).status, "downloaded");
+        yield* Updates.check("manual");
+        const State = yield* Updates.getState;
+        assert.equal(State.status, "error");
+        assert.isNull(State.downloadedVersion);
+        assert.include(State.message ?? "", "merge conflicts");
+        assert.equal((yield* Updates.install).accepted, false);
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), Harness.layer)));
+  });
   it("preserves complete causes for update poller and event failures", () => {
     const cause = Cause.combine(
       Cause.fail(new Error("updater failed")),

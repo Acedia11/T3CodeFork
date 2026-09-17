@@ -40,6 +40,17 @@ const makeEnvironment = (
   DesktopEnvironment.DesktopEnvironment.pipe(Effect.provide(makeEnvironmentLayer(overrides, env)));
 
 describe("DesktopEnvironment", () => {
+  it.effect("isolates the fork smoke test browser profile and server state", () =>
+    Effect.gen(function* () {
+      const Environment = yield* makeEnvironment(
+        { isPackaged: true },
+        { T3CODE_FORK_SMOKE: "1", T3CODE_HOME: "/tmp/ForkSmoke" },
+      );
+      assert.equal(Environment.appDataDirectory, "/tmp/ForkSmoke");
+      assert.equal(Environment.stateDir, "/tmp/ForkSmoke/userdata");
+    }),
+  );
+
   it.effect("derives state paths and development identity inside Effect", () =>
     Effect.gen(function* () {
       const environment = yield* makeEnvironment(

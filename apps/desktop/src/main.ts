@@ -1,4 +1,6 @@
 import * as MacPermissions from "./permissions/MacPermissions.ts";
+import { InitializeForkSmoke } from "./fork/ForkSmoke.ts";
+InitializeForkSmoke();
 for (const stream of [process.stdout, process.stderr]) {
   stream.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code !== "EPIPE") throw err;

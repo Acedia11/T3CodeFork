@@ -824,6 +824,9 @@ const spawnAndCollectOutput = Effect.fn("spawnAndCollectOutput")(function* (
 });
 
 const resolveGitCommitHash = Effect.fn("resolveGitCommitHash")(function* (repoRoot: string) {
+  const Override = yield* Config.string("T3CODE_COMMIT_HASH").pipe(Config.option);
+  if (Option.isSome(Override) && /^[0-9a-f]{40}$/i.test(Override.value))
+    return Override.value.slice(0, 12);
   const result = yield* spawnAndCollectOutput(
     ChildProcess.make("git", ["rev-parse", "--short=12", "HEAD"], {
       cwd: repoRoot,
@@ -2668,6 +2671,15 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     ],
   };
   const updateChannel = resolveDesktopUpdateChannel(version);
+  const IsForkBuild = yield* Config.boolean("T3CODE_FORK_BUILD").pipe(Config.withDefault(false));
+  if (IsForkBuild) {
+    const Root = yield* RepoRoot;
+    const PathService = yield* Path.Path;
+    (buildConfig.extraResources as unknown[]).push({
+      from: PathService.join(Root, "ForkTools/Updater.py"),
+      to: "ForkUpdater.py",
+    });
+  }
   if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
     if (publishConfig) {
@@ -2690,6 +2702,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       icon: "icon.icns",
       category: "public.app-category.developer-tools",
       extendInfo: {
+        ...(IsForkBuild ? { CFBundleDisplayName: "T3 Code (Ace)" } : {}),
         NSScreenCaptureUsageDescription:
           "T3 Code captures the active window when you use the window capture shortcut.",
       },
