@@ -26,6 +26,8 @@ import {
 } from "./ComposerControl";
 import { useComposerMenuProps } from "./composerEventScope";
 import { shortcutLabelForCommand } from "../../keybindings";
+import { AcePreviewEnabled } from "~/AcePreview";
+import "./AceModelPicker.css";
 
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   /**
@@ -285,8 +287,14 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       <PopoverPopup
         {...(props.isComposerOwned ? composerFloatingLayerProps : {})}
         align="start"
-        className="before:hidden [--viewport-inline-padding:0]"
-        viewportClassName="overflow-hidden! rounded-[calc(var(--radius-lg)-1px)] p-0 [clip-path:inset(0_round_calc(var(--radius-lg)-1px))]"
+        className={cn(
+          "before:hidden [--viewport-inline-padding:0]",
+          AcePreviewEnabled && "AceModelPickerPopup",
+        )}
+        viewportClassName={cn(
+          "overflow-hidden! rounded-[calc(var(--radius-lg)-1px)] p-0 [clip-path:inset(0_round_calc(var(--radius-lg)-1px))]",
+          AcePreviewEnabled && "AceModelPickerViewport",
+        )}
       >
         <ModelPickerContent
           activeInstanceId={activeInstanceId}

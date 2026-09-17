@@ -101,16 +101,34 @@ export function AttachAceStreamingText(Root: HTMLElement, Scope = "") {
     `${Scope}:${Root.closest("[data-assistant-citation-source]")?.getAttribute("data-assistant-citation-source") ?? ""}`;
   let Identity = ReadIdentity();
   let Painted: PaintedChunk[] = [];
+  let FadingElements = new Set<Element>();
   let Frame: number | null = null;
   let Streaming = false;
   let Observing = false;
   let Disposed = false;
 
-  function Clear() {
+  function SyncFadingElements() {
+    const Next = new Set<Element>();
+    for (const Entry of Painted) {
+      for (const Range of Entry.Ranges) {
+        if (Range.startContainer.parentElement) Next.add(Range.startContainer.parentElement);
+      }
+    }
+    for (const Element of FadingElements) {
+      if (!Next.has(Element)) Element.removeAttribute("data-ace-text-fade");
+    }
+    for (const Element of Next) {
+      if (!FadingElements.has(Element)) Element.setAttribute("data-ace-text-fade", "");
+    }
+    FadingElements = Next;
+  }
+
+  function Clear(PreserveFadeStyles = false) {
     if (Frame !== null) cancelAnimationFrame(Frame);
     Frame = null;
     for (const Chunk of Painted) MoveHighlight(Chunk, -1);
     Painted = [];
+    if (!PreserveFadeStyles) SyncFadingElements();
   }
 
   function Paint(Now: number) {
@@ -126,6 +144,7 @@ export function AttachAceStreamingText(Root: HTMLElement, Scope = "") {
       MoveHighlight(Entry, Opacity >= 1 ? -1 : Math.floor(Opacity * Levels));
       return Opacity < 1;
     });
+    SyncFadingElements();
     if (Painted.length > 0) Frame = requestAnimationFrame(Paint);
   }
 
@@ -133,8 +152,9 @@ export function AttachAceStreamingText(Root: HTMLElement, Scope = "") {
     if (!Observing || Disposed) return;
     const Current = ReadText(Root);
     const Now = performance.now();
-    Clear();
+    Clear(true);
     if (ReadIdentity() !== Identity) {
+      SyncFadingElements();
       Identity = ReadIdentity();
       Fade.Reset(Current.Text);
       return;

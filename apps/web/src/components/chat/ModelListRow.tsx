@@ -14,6 +14,7 @@ import { Kbd } from "../ui/kbd";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { modelPickerModelKey } from "./modelPickerKeys";
+import { AcePreviewEnabled } from "~/AcePreview";
 
 export const ModelListRow = memo(function ModelListRow(props: {
   index: number;
@@ -45,6 +46,11 @@ export const ModelListRow = memo(function ModelListRow(props: {
   const providerLabel = props.model.subProvider
     ? `${props.providerDisplayName} · ${props.model.subProvider}`
     : props.providerDisplayName;
+  const ProviderLabel = (
+    <span className="truncate text-xs font-normal leading-snug text-muted-foreground/70">
+      {providerLabel}
+    </span>
+  );
 
   const row = (
     <ComboboxItem
@@ -58,11 +64,19 @@ export const ModelListRow = memo(function ModelListRow(props: {
         "hover:bg-[color-mix(in_srgb,var(--popover)_90%,var(--contrast-foreground))] data-highlighted:bg-[color-mix(in_srgb,var(--popover)_90%,var(--contrast-foreground))] data-selected:bg-foreground/[0.08] data-selected:text-foreground data-selected:ring-0 [&[data-highlighted][data-selected]]:bg-[color-mix(in_srgb,var(--popover)_90%,var(--contrast-foreground))]",
         props.disabledReason &&
           "data-disabled:pointer-events-auto data-disabled:cursor-not-allowed data-disabled:hover:bg-transparent",
+        AcePreviewEnabled && "AceModelRow",
       )}
     >
-      <div className="min-w-0 flex-1 text-left">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0 truncate text-xs font-medium leading-snug">
+      <div className={cn("min-w-0 flex-1 text-left", AcePreviewEnabled && "AceModelRowBody")}>
+        <div
+          className={cn("flex min-w-0 items-center gap-2", AcePreviewEnabled && "AceModelRowTitle")}
+        >
+          <div
+            className={cn(
+              "min-w-0 truncate text-xs font-medium leading-snug",
+              AcePreviewEnabled && "AceModelRowName",
+            )}
+          >
             {props.useTriggerLabel
               ? getTriggerDisplayModelLabel(props.model)
               : getDisplayModelName(
@@ -85,11 +99,23 @@ export const ModelListRow = memo(function ModelListRow(props: {
           ) : null}
         </div>
         {props.showProvider && (
-          <div className="mt-1 flex items-center gap-1.5">
+          <div
+            className={cn(
+              "mt-1 flex items-center gap-1.5",
+              AcePreviewEnabled && "AceModelRowProvider",
+            )}
+          >
             {ProviderIcon ? <ProviderIcon className="size-3 shrink-0" /> : null}
-            <span className="truncate text-xs font-normal leading-snug text-muted-foreground/70">
-              {providerLabel}
-            </span>
+            {AcePreviewEnabled ? (
+              <Tooltip>
+                <TooltipTrigger render={ProviderLabel} />
+                <TooltipPopup side="top" align="center">
+                  {providerLabel}
+                </TooltipPopup>
+              </Tooltip>
+            ) : (
+              ProviderLabel
+            )}
           </div>
         )}
       </div>
@@ -110,6 +136,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
                 className={cn(
                   "-mr-1 shrink-0 text-muted-foreground/70 opacity-64 transition-[color,opacity] hover:text-foreground hover:opacity-100 group-hover:opacity-100",
                   props.isFavorite && "text-foreground opacity-100",
+                  AcePreviewEnabled && "AceModelFavorite",
                 )}
                 onClick={(event) => {
                   event.stopPropagation();

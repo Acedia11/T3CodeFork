@@ -46,6 +46,7 @@ import {
   type ProviderInstanceEntry,
 } from "../../providerInstances";
 import { providerModelKey, sortProviderModelItems } from "../../modelOrdering";
+import { AcePreviewEnabled } from "~/AcePreview";
 
 type ModelPickerItem = {
   slug: string;
@@ -811,7 +812,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   return (
     <TooltipProvider delay={0}>
       <div
-        className="relative flex h-screen max-h-86.5 w-screen max-w-90 flex-row overflow-hidden"
+        className={cn(
+          "relative flex h-screen max-h-86.5 w-screen max-w-90 flex-row overflow-hidden",
+          AcePreviewEnabled && "AceModelPicker",
+        )}
         data-model-picker-content="true"
       >
         {/* Sidebar */}
@@ -880,10 +884,11 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
             className={cn(
               "flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/40",
               showSidebar && "border-l border-border/70",
+              AcePreviewEnabled && "AceModelMain",
             )}
           >
             {/* Search bar */}
-            <div className="px-2 pt-2">
+            <div className={cn("px-2 pt-2", AcePreviewEnabled && "AceModelSearch")}>
               <div className="border-b border-border/70 pb-2.5 transition-colors focus-within:border-ring">
                 <ComboboxInput
                   ref={searchInputRef}
@@ -902,7 +907,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                       !e.altKey &&
                       !e.ctrlKey &&
                       !e.metaKey &&
-                      ((e.key === "ArrowLeft" && !e.shiftKey && searchQuery.length === 0) ||
+                      ((!AcePreviewEnabled &&
+                        e.key === "ArrowLeft" &&
+                        !e.shiftKey &&
+                        searchQuery.length === 0) ||
                         (e.key === "Tab" && e.shiftKey))
                     ) {
                       const sidebar = e.currentTarget
@@ -970,10 +978,18 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                           index={index}
                           value={modelKey}
                           aria-expanded={legacySection.isExpanded}
-                          className="group w-full cursor-pointer rounded-md px-2 py-2"
+                          className={cn(
+                            "group w-full cursor-pointer rounded-md px-2 py-2",
+                            AcePreviewEnabled && "AceModelLegacyRow",
+                          )}
                           contentClassName="flex w-full items-center gap-3"
                         >
-                          <div className="min-w-0 flex-1 text-left">
+                          <div
+                            className={cn(
+                              "min-w-0 flex-1 text-left",
+                              AcePreviewEnabled && "AceModelLegacyLabel",
+                            )}
+                          >
                             <div className="text-xs font-medium leading-snug">Legacy models</div>
                             <div className="mt-1 text-xs font-normal leading-snug text-muted-foreground/70">
                               {legacySection.legacyModels.length} models
@@ -1011,8 +1027,13 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                             ? selectedModelKeySet.has(modelKey)
                             : modelKey === activeModelKey
                         }
-                        showSelection={selectedModelKeys !== undefined}
-                        showProvider
+                        showSelection={AcePreviewEnabled || selectedModelKeys !== undefined}
+                        showProvider={
+                          !AcePreviewEnabled ||
+                          isSearching ||
+                          selectedInstanceId === "favorites" ||
+                          model.subProvider !== undefined
+                        }
                         preferShortName={!isLocked}
                         useTriggerLabel={false}
                         showNewBadge={model.badge === "new"}
@@ -1023,10 +1044,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                       />
                     );
                   }}
-                  estimatedItemSize={52}
+                  estimatedItemSize={AcePreviewEnabled ? 32 : 52}
                   drawDistance={480}
                   recycleItems
-                  contentContainerClassName="pl-2 pr-px"
+                  contentContainerClassName={AcePreviewEnabled ? "px-1.5" : "pl-2 pr-px"}
                   ItemSeparatorComponent={ModelListSeparator}
                   onLayout={updateModelListScrollFades}
                   onScroll={updateModelListScrollFades}

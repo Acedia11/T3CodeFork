@@ -1,5 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useMediaQuery } from "~/hooks/useMediaQuery";
+
+export const AceToolFoldDuration = 160;
+const AceToolFoldStyle = {
+  "--AceToolFoldDuration": `${AceToolFoldDuration}ms`,
+} as CSSProperties;
 
 export function AceToolDisclosure({
   Open,
@@ -15,10 +20,18 @@ export function AceToolDisclosure({
   if (Open && !Mounted) SetMounted(true);
   if (!Open && Mounted && ReducedMotion) SetMounted(false);
 
+  useEffect(() => {
+    if (Open || !Mounted || ReducedMotion) return;
+    // Canceled or zero-height transitions may never emit transitionend.
+    const Timeout = setTimeout(() => SetMounted(false), AceToolFoldDuration + 50);
+    return () => clearTimeout(Timeout);
+  }, [Open, Mounted, ReducedMotion]);
+
   return (
     <div
       id={Id}
       className="AceToolFold"
+      style={AceToolFoldStyle}
       data-open={Open}
       aria-hidden={!Open}
       inert={!Open}

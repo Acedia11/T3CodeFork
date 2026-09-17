@@ -4,6 +4,11 @@ import { AttachAceStreamingText } from "./AceStreamingText";
 class TestText {
   data = "Read";
   nodeType = 3;
+  Attributes = new Map<string, string>();
+  parentElement = {
+    setAttribute: (Name: string, Value: string) => this.Attributes.set(Name, Value),
+    removeAttribute: (Name: string) => this.Attributes.delete(Name),
+  };
   get length() {
     return this.data.length;
   }
@@ -13,6 +18,9 @@ class TestRange {
   Start = 0;
   End = 0;
   Node: TestText | undefined;
+  get startContainer() {
+    return this.Node;
+  }
   setStart(Node: TestText, Offset: number) {
     this.Node = Node;
     this.Start = Offset;
@@ -91,6 +99,7 @@ function CreateStream() {
     Observers,
     Frames,
     Reads: () => Reads,
+    HasFadeStyles: () => Text.Attributes.has("data-ace-text-fade"),
     ChangeIdentity: () => (Identity = "message-two"),
     Append(Value: string, Time: number, Deliver = true) {
       Now = Time;
@@ -130,6 +139,7 @@ describe("stream completion", () => {
     View.Append(" now", 100, false);
     View.Stream.SetStreaming(false);
 
+    expect(View.HasFadeStyles()).toBe(true);
     expect(View.Observers.size).toBe(0);
     expect(View.Painted()).toEqual([
       { Text: " this", Level: expect.any(Number) },
@@ -141,6 +151,7 @@ describe("stream completion", () => {
     View.Paint(500);
     expect(View.Painted()).toEqual([]);
     expect(View.Frames.size).toBe(0);
+    expect(View.HasFadeStyles()).toBe(false);
 
     const Reads = View.Reads();
     View.Append(" settled history", 600);
@@ -154,6 +165,7 @@ describe("stream completion", () => {
     View.Document.dispatchEvent(new Event("visibilitychange"));
     expect(View.Observers.size).toBe(0);
     expect(View.Reads()).toBe(0);
+    expect(View.HasFadeStyles()).toBe(false);
     expect(View.Frames.size).toBe(0);
   });
 
@@ -164,10 +176,12 @@ describe("stream completion", () => {
     View.Stream.SetStreaming(false);
     expect(View.Painted().length).toBeGreaterThan(0);
     View.Stream.Dispose();
+    expect(View.HasFadeStyles()).toBe(false);
     expect(View.Painted()).toEqual([]);
     expect(View.Frames.size).toBe(0);
     View.Stream.SetStreaming(true);
     expect(View.Observers.size).toBe(0);
+    expect(View.HasFadeStyles()).toBe(false);
   });
 
   it.each(["hidden", "reduced motion"])("clears a draining message for %s", (Condition) => {
@@ -194,6 +208,7 @@ describe("stream completion", () => {
     View.Stream.SetStreaming(false);
     View.ChangeIdentity();
     View.Paint(40);
+    expect(View.HasFadeStyles()).toBe(false);
     expect(View.Painted()).toEqual([]);
     expect(View.Frames.size).toBe(0);
   });

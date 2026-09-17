@@ -1,7 +1,7 @@
 import { ArrowUpIcon, ClockIcon } from "lucide-react";
 import { AcePreviewEnabled } from "~/AcePreview";
 import { AceToolIcon, AceToolLabel } from "./AceToolLabel";
-import { AceToolDisclosure } from "./AceToolDisclosure";
+import { AceToolDisclosure, AceToolFoldDuration } from "./AceToolDisclosure";
 import * as AceToolPresentation from "./AceToolPresentation";
 import * as AceToolTimeline from "./AceToolTimeline.logic";
 import "./AceToolTimeline.css";
@@ -2773,7 +2773,7 @@ function AceActivityGroupTimelineRow({
         aria-expanded={Open}
         aria-controls={DetailsId}
         onClick={() => {
-          Ctx.onToggleWorkEntry(Row.id, Open, 240);
+          Ctx.onToggleWorkEntry(Row.id, Open, AceToolFoldDuration);
           (Ctx.workGroupViewState.AceToolFolds ??= new Map()).set(Row.groupId, !Open);
           SetPinned(!Open);
         }}

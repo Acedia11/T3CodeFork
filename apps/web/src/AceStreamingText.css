@@ -9,131 +9,132 @@ html[data-ace-preview] .chat-markdown[data-ace-streaming] .chat-markdown-shiki {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-ace-preview] ::highlight(AceStreaming0) {
+  /* Global highlight selectors create 32 styles per app element, even while idle. */
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming0) {
     color: color-mix(in srgb, currentColor 0%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming1) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming1) {
     color: color-mix(in srgb, currentColor 3.125%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming2) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming2) {
     color: color-mix(in srgb, currentColor 6.25%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming3) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming3) {
     color: color-mix(in srgb, currentColor 9.375%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming4) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming4) {
     color: color-mix(in srgb, currentColor 12.5%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming5) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming5) {
     color: color-mix(in srgb, currentColor 15.625%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming6) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming6) {
     color: color-mix(in srgb, currentColor 18.75%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming7) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming7) {
     color: color-mix(in srgb, currentColor 21.875%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming8) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming8) {
     color: color-mix(in srgb, currentColor 25%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming9) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming9) {
     color: color-mix(in srgb, currentColor 28.125%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming10) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming10) {
     color: color-mix(in srgb, currentColor 31.25%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming11) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming11) {
     color: color-mix(in srgb, currentColor 34.375%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming12) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming12) {
     color: color-mix(in srgb, currentColor 37.5%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming13) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming13) {
     color: color-mix(in srgb, currentColor 40.625%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming14) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming14) {
     color: color-mix(in srgb, currentColor 43.75%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming15) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming15) {
     color: color-mix(in srgb, currentColor 46.875%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming16) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming16) {
     color: color-mix(in srgb, currentColor 50%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming17) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming17) {
     color: color-mix(in srgb, currentColor 53.125%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming18) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming18) {
     color: color-mix(in srgb, currentColor 56.25%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming19) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming19) {
     color: color-mix(in srgb, currentColor 59.375%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming20) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming20) {
     color: color-mix(in srgb, currentColor 62.5%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming21) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming21) {
     color: color-mix(in srgb, currentColor 65.625%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming22) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming22) {
     color: color-mix(in srgb, currentColor 68.75%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming23) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming23) {
     color: color-mix(in srgb, currentColor 71.875%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming24) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming24) {
     color: color-mix(in srgb, currentColor 75%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming25) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming25) {
     color: color-mix(in srgb, currentColor 78.125%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming26) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming26) {
     color: color-mix(in srgb, currentColor 81.25%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming27) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming27) {
     color: color-mix(in srgb, currentColor 84.375%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming28) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming28) {
     color: color-mix(in srgb, currentColor 87.5%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming29) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming29) {
     color: color-mix(in srgb, currentColor 90.625%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming30) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming30) {
     color: color-mix(in srgb, currentColor 93.75%, transparent);
   }
 
-  html[data-ace-preview] ::highlight(AceStreaming31) {
+  html[data-ace-preview] [data-ace-text-fade]::highlight(AceStreaming31) {
     color: color-mix(in srgb, currentColor 96.875%, transparent);
   }
 }

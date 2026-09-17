@@ -10,6 +10,7 @@ import {
   shouldShowInstanceBadge,
   type ProviderInstanceEntry,
 } from "../../providerInstances";
+import { AcePreviewEnabled } from "~/AcePreview";
 
 /**
  * Build the hover tooltip for an instance button. Mirrors the old
@@ -74,6 +75,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   const sidebarContentRef = useRef<HTMLDivElement>(null);
   const [selectedIndicatorTop, setSelectedIndicatorTop] = useState<number | null>(null);
   useLayoutEffect(() => {
+    if (AcePreviewEnabled) return;
     const content = sidebarContentRef.current;
     if (!content) {
       return;
@@ -92,20 +94,32 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
     <Toolbar.Root
       className="w-11 shrink-0 overflow-hidden bg-muted/30"
       data-model-picker-sidebar="true"
+      data-ace-model-tabs={AcePreviewEnabled ? "" : undefined}
       aria-label="Providers"
-      orientation="vertical"
+      orientation={AcePreviewEnabled ? "horizontal" : "vertical"}
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-        if (event.key === "ArrowRight") {
+        if (event.key === (AcePreviewEnabled ? "ArrowDown" : "ArrowRight")) {
           event.preventDefault();
           props.onFocusSearch();
           return;
         }
       }}
     >
-      <div className="h-full overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div ref={sidebarContentRef} className="relative flex min-h-full flex-col gap-1 p-1">
-          {selectedIndicatorTop !== null ? (
+      <div
+        className={cn(
+          "h-full overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          AcePreviewEnabled && "AceModelTabsScroll",
+        )}
+      >
+        <div
+          ref={sidebarContentRef}
+          className={cn(
+            "relative flex min-h-full flex-col gap-1 p-1",
+            AcePreviewEnabled && "AceModelTabs",
+          )}
+        >
+          {!AcePreviewEnabled && selectedIndicatorTop !== null ? (
             <div
               data-model-picker-selected-indicator="true"
               className={cn(
@@ -131,12 +145,18 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                         aria-label="Favorites"
                         aria-pressed={props.selectedInstanceId === "favorites"}
                       >
-                        <StarIcon className="size-5 fill-current shrink-0" aria-hidden />
+                        <StarIcon
+                          className={cn(
+                            "fill-current shrink-0",
+                            AcePreviewEnabled ? "size-4" : "size-5",
+                          )}
+                          aria-hidden
+                        />
                       </Toolbar.Button>
                     }
                   />
                   <TooltipPopup
-                    side={PICKER_TOOLTIP_SIDE}
+                    side={AcePreviewEnabled ? "top" : PICKER_TOOLTIP_SIDE}
                     sideOffset={PICKER_TOOLTIP_SIDE_OFFSET}
                     align="center"
                     className={PICKER_TOOLTIP_CLASS}
@@ -203,8 +223,8 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   displayName={entry.displayName}
                   accentColor={entry.accentColor}
                   showBadge={showInstanceBadge}
-                  className="size-6 z-30"
-                  iconClassName="size-5"
+                  className={cn("z-30", AcePreviewEnabled ? "size-5" : "size-6")}
+                  iconClassName={AcePreviewEnabled ? "size-4" : "size-5"}
                   indicatorBackground={
                     isHovered && !isDisabled
                       ? "var(--muted)"
@@ -239,7 +259,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 <Tooltip>
                   <TooltipTrigger render={trigger} />
                   <TooltipPopup
-                    side={PICKER_TOOLTIP_SIDE}
+                    side={AcePreviewEnabled ? "top" : PICKER_TOOLTIP_SIDE}
                     sideOffset={PICKER_TOOLTIP_SIDE_OFFSET}
                     align="center"
                     className={PICKER_TOOLTIP_CLASS}

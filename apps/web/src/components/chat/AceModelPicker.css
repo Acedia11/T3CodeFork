@@ -1,0 +1,163 @@
+html[data-ace-preview] .AceModelPickerPopup {
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  border-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+html[data-ace-preview] .AceModelPickerViewport {
+  border-radius: 13px;
+  clip-path: inset(0 round 13px);
+}
+
+html[data-ace-preview] .AceModelPicker {
+  flex-direction: column;
+  width: min(340px, calc(100vw - 24px));
+  max-width: 340px;
+  height: 296px;
+  max-height: min(296px, var(--available-height, calc(100dvh - 32px)));
+}
+
+html[data-ace-preview] .AceModelMain {
+  border: 0;
+  background: transparent;
+}
+
+html[data-ace-preview] [data-ace-model-tabs] {
+  width: 100%;
+  height: 40px;
+  background: transparent;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+html[data-ace-preview] .AceModelTabsScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+html[data-ace-preview] .AceModelTabs {
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  min-width: 100%;
+  height: 40px;
+  padding: 4px 6px;
+}
+
+html[data-ace-preview] .AceModelTabs > [data-model-picker-provider] {
+  flex: 0 0 32px;
+  width: 32px;
+}
+
+html[data-ace-preview] .AceModelTabs > [aria-hidden="true"] {
+  display: none;
+}
+
+html[data-ace-preview] .AceModelTabs button {
+  height: 32px;
+  width: 32px;
+  border-radius: 8px;
+  transition: background-color var(--AceMotionQuick, 120ms) var(--AceMotionEase, ease-out);
+}
+
+html[data-ace-preview] .AceModelTabs button::after {
+  content: "";
+  position: absolute;
+  inset: auto 7px -3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--foreground);
+  opacity: 0;
+  transition: opacity var(--AceMotionQuick, 120ms) var(--AceMotionEase, ease-out);
+}
+
+html[data-ace-preview] .AceModelTabs button[aria-pressed="true"]::after {
+  opacity: 0.8;
+}
+
+html[data-ace-preview] .AceModelSearch {
+  flex: none;
+  height: 40px;
+  padding: 0 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+html[data-ace-preview] .AceModelSearch > div {
+  border: 0;
+  padding: 6px 0;
+}
+
+html[data-ace-preview] .AceModelSearch input {
+  font-size: 13px;
+  box-shadow: none;
+}
+
+html[data-ace-preview] .AceModelSearch [data-slot="combobox-start-addon"] svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+}
+
+html[data-ace-preview] .AceModelRow,
+html[data-ace-preview] .AceModelLegacyRow {
+  min-height: 30px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: background-color var(--AceMotionQuick, 120ms) var(--AceMotionEase, ease-out);
+}
+
+html[data-ace-preview] .AceModelRow [data-slot="combobox-item-content"] {
+  gap: 8px;
+}
+
+html[data-ace-preview] .AceModelRowBody,
+html[data-ace-preview] .AceModelLegacyLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+html[data-ace-preview] .AceModelRowTitle {
+  min-width: 0;
+  flex: 1;
+}
+
+html[data-ace-preview] .AceModelRowName {
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 20px;
+}
+
+html[data-ace-preview] .AceModelRowProvider {
+  min-width: 0;
+  max-width: 82px;
+  margin: 0;
+  gap: 4px;
+}
+
+html[data-ace-preview] .AceModelRowProvider > span,
+html[data-ace-preview] .AceModelLegacyLabel > div:last-child {
+  margin: 0;
+  font-size: 11px;
+  color: var(--secondary-label);
+}
+
+html[data-ace-preview] .AceModelFavorite {
+  width: 22px;
+  height: 22px;
+  margin-right: -3px;
+  padding: 0;
+  transition:
+    color var(--AceMotionQuick, 120ms) var(--AceMotionEase, ease-out),
+    opacity var(--AceMotionQuick, 120ms) var(--AceMotionEase, ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ace-preview] .AceModelTabs button,
+  html[data-ace-preview] .AceModelTabs button::after,
+  html[data-ace-preview] .AceModelRow,
+  html[data-ace-preview] .AceModelLegacyRow,
+  html[data-ace-preview] .AceModelFavorite {
+    transition: none;
+  }
+}

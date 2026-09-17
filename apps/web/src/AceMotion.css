@@ -1,0 +1,221 @@
+html[data-ace-preview] {
+  --AceMotionMicro: 80ms;
+  --AceMotionQuick: 120ms;
+  --AceMotionOpen: 160ms;
+  --AceMotionClose: 90ms;
+  --AceMotionEase: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="popover-popup"],
+    [data-slot="menu-popup"],
+    [data-slot="select-popup"],
+    [data-slot="combobox-popup"]
+  ) {
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--AceMotionOpen) var(--AceMotionEase),
+    scale var(--AceMotionOpen) var(--AceMotionEase),
+    translate var(--AceMotionOpen) var(--AceMotionEase);
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="popover-popup"],
+    [data-slot="menu-popup"],
+    [data-slot="select-popup"],
+    [data-slot="combobox-popup"]
+  ):is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+  scale: 0.97;
+  translate: 0 -3px;
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="popover-popup"],
+    [data-slot="menu-popup"],
+    [data-slot="select-popup"],
+    [data-slot="combobox-popup"]
+  )[data-side="top"]:is([data-starting-style], [data-ending-style]) {
+  translate: 0 3px;
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="popover-popup"],
+    [data-slot="menu-popup"],
+    [data-slot="select-popup"],
+    [data-slot="combobox-popup"]
+  )[data-ending-style] {
+  scale: 0.985;
+  transition-duration: var(--AceMotionClose);
+}
+
+html[data-ace-preview]
+  :is([data-slot="dialog-popup"], [data-slot="alert-dialog-popup"], [data-slot="sheet-popup"]) {
+  transition-duration: var(--AceMotionOpen);
+  transition-timing-function: var(--AceMotionEase);
+  will-change: auto;
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="dialog-popup"],
+    [data-slot="alert-dialog-popup"],
+    [data-slot="sheet-popup"]
+  )[data-ending-style] {
+  transition-duration: var(--AceMotionClose);
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="dialog-backdrop"],
+    [data-slot="alert-dialog-backdrop"],
+    [data-slot="sheet-backdrop"]
+  ) {
+  transition: opacity var(--AceMotionQuick) ease-out;
+}
+
+html[data-ace-preview] [data-slot="tooltip-popup"] {
+  transition:
+    opacity var(--AceMotionQuick) var(--AceMotionEase),
+    scale var(--AceMotionQuick) var(--AceMotionEase);
+}
+
+html[data-ace-preview] [data-slot="tooltip-popup"][data-ending-style] {
+  transition-duration: 60ms;
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="tooltip-popup"],
+    [data-slot="popover-positioner"],
+    [data-slot="tooltip-positioner"]
+  )[data-instant],
+html[data-ace-preview] [data-slot="popover-popup"][data-instant="trigger-change"] {
+  transition: none;
+}
+
+html[data-ace-preview] [data-slot="combobox-surface"] {
+  transition: opacity var(--AceMotionOpen) var(--AceMotionEase);
+}
+
+html[data-ace-preview]
+  [data-slot="combobox-surface"]:has(> [data-starting-style], > [data-ending-style]) {
+  opacity: 0;
+}
+
+html[data-ace-preview] [data-slot="combobox-surface"]:has(> [data-ending-style]) {
+  transition-duration: var(--AceMotionClose);
+}
+
+html[data-ace-preview]
+  :is(button:not([data-slot="sidebar-rail"]), [data-slot="toggle"], [data-slot="select-trigger"]) {
+  transition:
+    background-color var(--AceMotionMicro) ease-out,
+    border-color var(--AceMotionMicro) ease-out,
+    color var(--AceMotionMicro) ease-out,
+    opacity var(--AceMotionQuick) ease-out,
+    scale var(--AceMotionQuick) var(--AceMotionEase);
+}
+
+html[data-ace-preview]
+  button:where(
+    :not(:disabled):not([aria-disabled="true"]):not([data-slot="sidebar-rail"]):not([aria-haspopup])
+  ):active {
+  scale: 0.97;
+  transition-duration: var(--AceMotionMicro);
+}
+
+html[data-ace-preview] :is([data-sidebar="menu-button"], .AceToolGroupHeader):active {
+  scale: 0.99;
+}
+
+html[data-ace-preview]
+  :is(
+    [data-slot="menu-item"],
+    [data-slot="menu-checkbox-item"],
+    [data-slot="menu-radio-item"],
+    [data-slot="select-item"],
+    [data-slot="combobox-item"]
+  ) {
+  transition:
+    background-color var(--AceMotionMicro) ease-out,
+    color var(--AceMotionMicro) ease-out;
+}
+
+html[data-ace-preview] [data-composer-control-chevron] {
+  transition: rotate var(--AceMotionQuick) var(--AceMotionEase);
+}
+
+html[data-ace-preview] [aria-expanded="true"] > :is(span, svg) [data-composer-control-chevron],
+html[data-ace-preview] [aria-expanded="true"] > [data-composer-control-chevron] {
+  rotate: 180deg;
+}
+
+html[data-ace-preview] :is([data-slot="switch"], [data-slot="checkbox"]) {
+  transition:
+    background-color var(--AceMotionQuick) ease-out,
+    border-color var(--AceMotionQuick) ease-out;
+}
+
+html[data-ace-preview] [data-slot="switch-thumb"] {
+  transition:
+    translate var(--AceMotionQuick) var(--AceMotionEase),
+    scale var(--AceMotionMicro) ease-out;
+  will-change: auto;
+}
+
+html[data-ace-preview] [data-slot="checkbox-indicator"] {
+  animation: AceControlEnter var(--AceMotionQuick) var(--AceMotionEase);
+}
+
+html[data-ace-preview] [data-slot="collapsible-panel"] {
+  transition-duration: var(--AceMotionOpen);
+  transition-timing-function: var(--AceMotionEase);
+}
+
+html[data-ace-preview]
+  [data-panel-animations="true"]
+  :is([data-slot="sidebar-gap"], [data-slot="sidebar-container"], [data-slot="sidebar-rail"]) {
+  transition-timing-function: var(--AceMotionEase);
+}
+
+html[data-ace-preview] [data-settings-page-scroll] > *,
+html[data-ace-preview] [data-chat-composer-footer] {
+  animation: AceContentEnter var(--AceMotionOpen) var(--AceMotionEase);
+}
+
+html[data-ace-preview] [data-slot="toast-viewport"] > [data-position],
+html[data-ace-preview] [data-slot="toast-popup"] {
+  transition-duration: var(--AceMotionOpen);
+}
+
+@keyframes AceContentEnter {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@keyframes AceControlEnter {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ace-preview] *,
+  html[data-ace-preview] *::before,
+  html[data-ace-preview] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  html[data-ace-preview] button:active {
+    scale: none !important;
+  }
+}

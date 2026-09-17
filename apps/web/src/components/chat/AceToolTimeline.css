@@ -48,8 +48,8 @@
   text-align: left;
   cursor: pointer;
   transition:
-    color 160ms ease,
-    background-color 160ms ease;
+    color 80ms ease,
+    background-color 80ms ease;
 }
 
 [data-ace-preview] .AceToolGroupHeader:hover {
@@ -72,7 +72,7 @@
 }
 
 [data-ace-preview] .AceToolGroupChevron > svg {
-  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
   stroke-width: 1.5;
 }
 
@@ -93,8 +93,8 @@
   grid-template-rows: 0fr;
   opacity: 0;
   transition:
-    grid-template-rows 240ms cubic-bezier(0.2, 0, 0, 1),
-    opacity 180ms ease;
+    grid-template-rows var(--AceToolFoldDuration, 160ms) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease;
   animation: none;
 }
 
@@ -122,6 +122,7 @@
   padding: 0;
   border-radius: 5px;
   margin-bottom: 0;
+  transition-duration: 80ms;
 }
 
 [data-ace-preview] .AceToolRow[data-ace-tool-row] > div:first-child {
@@ -227,7 +228,7 @@
 
 [data-ace-preview] .AceToolRow > div:first-child > div > span:last-child {
   opacity: 0;
-  transition: opacity 160ms ease;
+  transition: opacity 80ms ease;
 }
 
 [data-ace-preview] .AceToolRow:hover > div:first-child > div > span:last-child,
@@ -244,7 +245,10 @@
   [data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolFold {
     transition: none;
   }
-  [data-ace-preview] .AceToolGroupChevron > svg {
+  [data-ace-preview] .AceToolGroupChevron > svg,
+  [data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolGroupHeader,
+  [data-ace-preview] .AceToolRow[data-ace-tool-row],
+  [data-ace-preview] .AceToolRow > div:first-child > div > span:last-child {
     transition: none;
   }
 }
