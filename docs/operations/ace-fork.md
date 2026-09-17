@@ -21,8 +21,14 @@ Keep its terminal open and use Ctrl+C to stop the preview processes.
 To seed history before the first launch, run `python3 ForkTools/PreviewHistory.py`.
 It takes a consistent read-only snapshot, disconnects provider sessions, clears
 pending work, and redirects projects to empty preview folders. History changes
-never sync back. Login credentials and production settings are not copied.
+never sync back. Project settings and live provider sessions are not copied.
 The snapshot command refuses to overwrite an existing preview database.
+
+On its first launch, the preview imports Codex and Claude provider entries from
+Nightly's settings and uses their existing CLI logins. Existing preview entries
+win, and later launches preserve account changes made in the preview. Credentials
+are not copied; instances with environment overrides need separate setup in
+**Settings > Providers**.
 
 Experimental visuals must use `AcePreviewEnabled` or the `data-ace-preview`
 document attribute. The launcher enables them only in development, so committing

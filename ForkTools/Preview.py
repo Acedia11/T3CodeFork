@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+from PreviewAccounts import ImportAccounts
+
 
 def Main():
     ConfigPath = Path.home() / "Library/Application Support/T3CodeFork/Config.json"
@@ -9,6 +11,7 @@ def Main():
     PreviewHome = ConfigPath.parent / "Preview"
     PreviewHome.mkdir(parents=True, exist_ok=True, mode=0o700)
     PreviewHome.chmod(0o700)
+    ImportAccounts(Path.home() / ".t3/userdata/settings.json", PreviewHome)
     Environment = dict(os.environ)
     Environment["PATH"] = os.pathsep.join((str(Path(Config["SourceRoot"]) / "node_modules/.bin"),
                                            Config["BuildPath"], Environment.get("PATH", "")))

@@ -109,6 +109,7 @@ function SidebarControl() {
         return;
       }
       if (
+        !AcePreviewEnabled &&
         isRichTextBoldShortcut(event) &&
         event.target instanceof HTMLElement &&
         event.target.closest('[data-composer-rich-text="true"]')
