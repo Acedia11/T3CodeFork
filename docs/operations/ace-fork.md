@@ -31,8 +31,12 @@ are not copied; instances with environment overrides need separate setup in
 **Settings > Providers**.
 
 Experimental visuals must use `AcePreviewEnabled` or the `data-ace-preview`
-document attribute. The launcher enables them only in development, so committing
+document attribute. Vite enables them only for the preview server, so committing
 experiments does not enable them in packaged Ace updates.
+
+The preview uses production React to reduce loading overhead while keeping source
+editing enabled. Code edits reload the page. For React development diagnostics and
+Fast Refresh, launch with `T3CODE_ACE_DEBUG_RENDERER=1 python3 ForkTools/Preview.py`.
 
 Commit and push changes on `main`, then prepare a local build:
 

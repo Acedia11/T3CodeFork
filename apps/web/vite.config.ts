@@ -153,7 +153,13 @@ const configuredAllowedHosts = (process.env.T3CODE_DEV_ALLOWED_HOSTS ?? "")
   .filter((entry) => entry.length > 0);
 const allowedHosts = [".ts.net", ...configuredAllowedHosts];
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
+  const AcePreview = command === "serve" && process.env.VITE_T3CODE_ACE_PREVIEW === "1";
+  const AceOptimized = AcePreview && process.env.T3CODE_ACE_DEBUG_RENDERER !== "1";
+  if (AcePreview) {
+    // Keep the editable preview on production React; only this renderer process changes.
+    process.env.NODE_ENV = AceOptimized ? "production" : "development";
+  }
   return {
     assetsInclude: ["**/*.wasm"],
     plugins: [
@@ -171,7 +177,7 @@ export default defineConfig(() => {
       // usage code stay out of the cold-start payload; the router prefetches
       // them on navigation intent (see getRouter's defaultPreload).
       tanstackRouter({ autoCodeSplitting: true }),
-      react(),
+      !AceOptimized && react(),
       babel({
         // We need to be explicit about the parser options after moving to @vitejs/plugin-react v6.0.0
         // This is because the babel plugin only automatically parses typescript and jsx based on relative paths (e.g. "**/*.ts")
@@ -182,6 +188,7 @@ export default defineConfig(() => {
       }),
       tailwindPlugins(bundledDev),
     ],
+    ...(AceOptimized ? { oxc: { jsx: { runtime: "automatic" as const } } } : {}),
     optimizeDeps: {
       include: [
         "@clerk/clerk-js",
@@ -196,6 +203,8 @@ export default defineConfig(() => {
       ],
     },
     define: {
+      // Build commands always exclude the experimental UI, even with an inherited preview flag.
+      "import.meta.env.VITE_T3CODE_ACE_PREVIEW": JSON.stringify(AcePreview ? "1" : ""),
       // In dev mode, tell the web app where the WebSocket server lives
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
       // Pinned explicitly rather than left to Vite's automatic VITE_ exposure:
@@ -229,6 +238,8 @@ export default defineConfig(() => {
       port,
       strictPort: true,
       allowedHosts,
+      // Bundled dev's stable entry URL must revalidate after source edits in Electron.
+      ...(AcePreview ? { headers: { "Cache-Control": "no-cache" } } : {}),
       // Transform the whole module graph at server start instead of on the
       // first request. Without this, a cold worktree discovers and transforms
       // modules one import-level at a time while the browser waits — which
