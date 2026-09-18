@@ -94,6 +94,15 @@ html.dark[data-ace-preview] .AceBackdropImage {
 [data-ace-preview] [data-sidebar-control] {
   gap: 1px;
 }
+[data-ace-preview] [data-sidebar-brand] {
+  margin-left: calc(var(--workspace-titlebar-content-left) + 58px);
+  flex-shrink: 1;
+}
+@container sidebar-header (width < 19rem) {
+  [data-ace-preview] [data-slot="sidebar-header"] [data-environment-identification="pill"] {
+    display: none;
+  }
+}
 [data-ace-preview] [data-sidebar-control]::before {
   content: "";
   position: absolute;
