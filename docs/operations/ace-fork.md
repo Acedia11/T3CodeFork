@@ -15,8 +15,10 @@ python3 ForkTools/Preview.py
 
 The preview opens as `T3 Code (Dev)` and keeps its test threads under
 `~/Library/Application Support/T3CodeFork/Preview`. It uses Electron's separate
-development profile. Frontend edits refresh in this window as you save.
-Keep its terminal open and use Ctrl+C to stop the preview processes.
+development profile. The launcher builds an optimized renderer before opening
+the window, so navigation does not wait for development compilation. Relaunch
+after source edits to rebuild. Quitting the preview also stops its renderer server.
+Keep its terminal open; Ctrl+C also stops the preview processes.
 
 To seed history before the first launch, run `python3 ForkTools/PreviewHistory.py`.
 It takes a consistent read-only snapshot, disconnects provider sessions, clears
@@ -31,12 +33,14 @@ are not copied; instances with environment overrides need separate setup in
 **Settings > Providers**.
 
 Experimental visuals must use `AcePreviewEnabled` or the `data-ace-preview`
-document attribute. Vite enables them only for the preview server, so committing
-experiments does not enable them in packaged Ace updates.
+document attribute. Vite enables them for development previews and the explicit
+`ace-preview` build mode. Compiled preview assets live in the preview home's
+`Renderer` directory; ordinary builds keep the experimental UI disabled.
 
-The preview uses production React to reduce loading overhead while keeping source
-editing enabled. Code edits reload the page. For React development diagnostics and
-Fast Refresh, launch with `T3CODE_ACE_DEBUG_RENDERER=1 python3 ForkTools/Preview.py`.
+For edits that reload as you save, use `python3 ForkTools/Preview.py --dev`.
+That mode uses production React but still runs the development asset server.
+For React development diagnostics and Fast Refresh, use
+`T3CODE_ACE_DEBUG_RENDERER=1 python3 ForkTools/Preview.py --dev`.
 
 Commit and push changes on `main`, then prepare a local build:
 

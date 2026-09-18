@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 from pathlib import Path
@@ -6,6 +7,9 @@ from PreviewAccounts import ImportAccounts
 
 
 def Main():
+    Parser = argparse.ArgumentParser(description="Open Ace with separate preview data.")
+    Parser.add_argument("--dev", dest="Dev", action="store_true", help="Reload the UI as source files change")
+    Arguments = Parser.parse_args()
     ConfigPath = Path.home() / "Library/Application Support/T3CodeFork/Config.json"
     Config = json.loads(ConfigPath.read_text())
     PreviewHome = ConfigPath.parent / "Preview"
@@ -22,9 +26,10 @@ def Main():
                         "T3CODE_DISABLE_AUTO_UPDATE": "1",
                         "VITE_T3CODE_ACE_PREVIEW": "1"})
     Environment.setdefault("T3CODE_BUNDLED_DEV", "1")
-    print(f"Starting Ace's development preview (PID {os.getpid()}). Separate data: {PreviewHome}", flush=True)
+    Mode = "dev:desktop" if Arguments.Dev else "preview:desktop"
+    print(f"Starting Ace's {Mode} (PID {os.getpid()}). Separate data: {PreviewHome}", flush=True)
     os.chdir(Config["SourceRoot"])
-    os.execvpe("node", ["node", "scripts/dev-runner.ts", "dev:desktop",
+    os.execvpe("node", ["node", "scripts/dev-runner.ts", Mode,
                        "--home-dir", str(PreviewHome)], Environment)
 
 

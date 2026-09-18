@@ -111,6 +111,8 @@ function shellSingleQuote(value) {
 export function makeDevelopmentEnvironmentScript(environment) {
   const envEntries = [
     ["VITE_DEV_SERVER_URL", environment.VITE_DEV_SERVER_URL],
+    ["VITE_T3CODE_ACE_PREVIEW", environment.VITE_T3CODE_ACE_PREVIEW],
+    ["T3CODE_DISABLE_AUTO_UPDATE", environment.T3CODE_DISABLE_AUTO_UPDATE],
     ["T3CODE_PORT", environment.T3CODE_PORT],
     ["T3CODE_HOME", environment.T3CODE_HOME],
     ["T3CODE_COMMIT_HASH", environment.T3CODE_COMMIT_HASH],

@@ -14,6 +14,7 @@ import { DEV_PROXIED_PATH_PREFIXES } from "@t3tools/shared/devProxy";
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
+import { ResolveAcePreview } from "./vite/AcePreview";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -153,10 +154,13 @@ const configuredAllowedHosts = (process.env.T3CODE_DEV_ALLOWED_HOSTS ?? "")
   .filter((entry) => entry.length > 0);
 const allowedHosts = [".ts.net", ...configuredAllowedHosts];
 
-export default defineConfig(({ command }) => {
-  const AcePreview = command === "serve" && process.env.VITE_T3CODE_ACE_PREVIEW === "1";
-  const AceOptimized = AcePreview && process.env.T3CODE_ACE_DEBUG_RENDERER !== "1";
-  if (AcePreview) {
+export default defineConfig(({ command, mode, isPreview }) => {
+  const Ace = ResolveAcePreview(command, mode, isPreview, process.env);
+  const AcePreview = Ace.Enabled;
+  const AceOptimized = AcePreview && !Ace.Compiled && process.env.T3CODE_ACE_DEBUG_RENDERER !== "1";
+  if (Ace.Compiled) {
+    process.env.NODE_ENV = "production";
+  } else if (AcePreview) {
     // Keep the editable preview on production React; only this renderer process changes.
     process.env.NODE_ENV = AceOptimized ? "production" : "development";
   }
@@ -186,7 +190,7 @@ export default defineConfig(({ command }) => {
         parserOpts: { plugins: ["typescript", "jsx"] },
         presets: [reactCompilerPreset()],
       }),
-      tailwindPlugins(bundledDev),
+      tailwindPlugins(bundledDev && !Ace.Compiled),
     ],
     ...(AceOptimized ? { oxc: { jsx: { runtime: "automatic" as const } } } : {}),
     optimizeDeps: {
@@ -203,7 +207,7 @@ export default defineConfig(({ command }) => {
       ],
     },
     define: {
-      // Build commands always exclude the experimental UI, even with an inherited preview flag.
+      // Ordinary builds exclude the experimental UI, even with an inherited preview flag.
       "import.meta.env.VITE_T3CODE_ACE_PREVIEW": JSON.stringify(AcePreview ? "1" : ""),
       // In dev mode, tell the web app where the WebSocket server lives
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
@@ -231,7 +235,12 @@ export default defineConfig(({ command }) => {
       dedupe: ["react", "react-dom"],
     },
     experimental: {
-      bundledDev,
+      bundledDev: bundledDev && !Ace.Compiled,
+    },
+    preview: {
+      host,
+      port,
+      strictPort: true,
     },
     server: {
       host,
@@ -289,10 +298,10 @@ export default defineConfig(({ command }) => {
       devSourcemap: buildSourcemap !== false,
     },
     build: {
-      outDir: "dist",
+      outDir: Ace.OutDir,
       emptyOutDir: true,
       manifest: true,
-      sourcemap: buildSourcemap,
+      sourcemap: Ace.Compiled ? false : buildSourcemap,
     },
     test: {
       projects: [defineProject(unitTestProject)],

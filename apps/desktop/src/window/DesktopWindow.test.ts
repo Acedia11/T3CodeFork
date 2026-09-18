@@ -225,6 +225,7 @@ function makeTestLayer(input: {
   readonly onPopupTemplate?: (input: ElectronMenu.ElectronMenuTemplateInput) => Effect.Effect<void>;
   readonly previewZoomReapplies?: number[];
   readonly onReveal?: (window: Electron.BrowserWindow) => void;
+  readonly EnvironmentLayer?: typeof desktopEnvironmentLayer;
 }) {
   let desktopSettings = input.desktopSettings ?? DesktopAppSettings.DEFAULT_DESKTOP_SETTINGS;
   const desktopAppSettingsLayer = Layer.succeed(DesktopAppSettings.DesktopAppSettings, {
@@ -285,7 +286,7 @@ function makeTestLayer(input: {
     Layer.provide(
       Layer.mergeAll(
         desktopAssetsLayer,
-        desktopEnvironmentLayer,
+        input.EnvironmentLayer ?? desktopEnvironmentLayer,
         desktopAppSettingsLayer,
         desktopClientSettingsLayer,
         desktopServerExposureLayer,
@@ -776,6 +777,43 @@ describe("DesktopWindow", () => {
         assert.deepEqual(fakeWindow.setWindowButtonPosition.mock.lastCall, [{ x: 16, y: 19 }]);
       }).pipe(Effect.provide(layer));
     }),
+  );
+
+  it.effect("keeps reused preview binaries on production window geometry outside development", () =>
+    Effect.gen(function* () {
+      vi.stubGlobal("__T3CODE_ACE_PREVIEW__", true);
+      for (const IsDevelopment of [false, true]) {
+        const Window = makeFakeBrowserWindow();
+        const Options: Electron.BrowserWindowConstructorOptions[] = [];
+        const TestLayer = makeTestLayer({
+          window: Window.window,
+          createCount: yield* Ref.make(0),
+          mainWindow: yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none()),
+          createdWindowOptions: Options,
+          EnvironmentLayer: DesktopEnvironment.layer(environmentInput).pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                NodeServices.layer,
+                DesktopConfig.layerTest({
+                  T3CODE_PORT: "3773",
+                  ...(IsDevelopment ? { VITE_DEV_SERVER_URL: "http://127.0.0.1:5733" } : {}),
+                }),
+              ),
+            ),
+          ),
+        });
+        yield* Effect.gen(function* () {
+          const Desktop = yield* DesktopWindow.DesktopWindow;
+          yield* Desktop.handleBackendReady(new URL("http://127.0.0.1:3773"));
+          assert.deepEqual(Options[0]?.trafficLightPosition, { x: 16, y: IsDevelopment ? 13 : 19 });
+          assert.equal(Options[0]?.transparent === true, IsDevelopment);
+          yield* Desktop.zoomMain("reset");
+          assert.deepEqual(Window.setWindowButtonPosition.mock.lastCall, [
+            { x: 16, y: IsDevelopment ? 13 : 19 },
+          ]);
+        }).pipe(Effect.provide(TestLayer));
+      }
+    }).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllGlobals()))),
   );
 
   it.effect("uses the persisted main window bounds when opening the window", () =>

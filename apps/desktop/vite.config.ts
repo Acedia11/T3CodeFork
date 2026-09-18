@@ -15,7 +15,10 @@ const isMainProcessExternal = (id: string) =>
   id === "electron" || id.startsWith("electron/") || isDesktopRuntimeExternalDependency(id);
 const shouldLaunchElectronAfterPack = process.env.T3CODE_DESKTOP_DEV === "1";
 const publicConfigDefine = {
-  __T3CODE_ACE_PREVIEW__: JSON.stringify(process.env.VITE_T3CODE_ACE_PREVIEW === "1"),
+  __T3CODE_ACE_PREVIEW__: JSON.stringify(
+    process.env.VITE_T3CODE_ACE_PREVIEW === "1" &&
+      (shouldLaunchElectronAfterPack || process.env.T3CODE_DESKTOP_PREVIEW === "1"),
+  ),
   __T3CODE_FORK_BUILD__: JSON.stringify(process.env.T3CODE_FORK_BUILD === "1"),
   __T3CODE_BUILD_CLERK_PUBLISHABLE_KEY__: JSON.stringify(
     repoEnv.T3CODE_CLERK_PUBLISHABLE_KEY?.trim() ?? "",
@@ -34,6 +37,12 @@ export default defineConfig({
       dev: {
         command:
           "node scripts/build-browser-secret.mjs && node scripts/build-preview-annotation-css.mjs && cross-env T3CODE_DESKTOP_DEV=1 vp pack --watch",
+        dependsOn: ["t3#build"],
+        cache: false,
+      },
+      preview: {
+        command:
+          "node scripts/build-browser-secret.mjs && node scripts/build-preview-annotation-css.mjs && vp build ../web --mode ace-preview && cross-env T3CODE_DESKTOP_PREVIEW=1 vp pack && cross-env T3CODE_COMPILED_PREVIEW=1 node scripts/dev-electron.mjs",
         dependsOn: ["t3#build"],
         cache: false,
       },

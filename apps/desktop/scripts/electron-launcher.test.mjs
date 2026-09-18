@@ -22,6 +22,8 @@ describe("electron development launcher", () => {
       T3CODE_PORT: "16566",
       T3CODE_HOME: "/tmp/t3",
       T3CODE_OTLP_PROTOCOL: "http/protobuf",
+      VITE_T3CODE_ACE_PREVIEW: "1",
+      T3CODE_DISABLE_AUTO_UPDATE: "1",
     });
 
     assert.include(
@@ -33,6 +35,8 @@ describe("electron development launcher", () => {
       "if [ -z \"${T3CODE_OTLP_PROTOCOL:-}\" ]; then export T3CODE_OTLP_PROTOCOL='http/protobuf'; fi",
     );
     assert.notInclude(environmentScript, "\nexport VITE_DEV_SERVER_URL=");
+    assert.include(environmentScript, "export VITE_T3CODE_ACE_PREVIEW='1'");
+    assert.include(environmentScript, "export T3CODE_DISABLE_AUTO_UPDATE='1'");
   });
 
   it("keeps the launcher script free of volatile environment values", () => {

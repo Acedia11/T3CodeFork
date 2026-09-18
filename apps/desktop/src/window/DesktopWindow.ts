@@ -33,16 +33,15 @@ import { makeQuitShortcutHandler } from "./QuitHold.ts";
 const TITLEBAR_HEIGHT = 40;
 // Matches --workspace-topbar-height in apps/web/src/index.css. Native macOS
 // buttons are 14 points tall and do not scale with the renderer's zoom.
-const MACOS_WORKSPACE_TOPBAR_HEIGHT =
-  typeof __T3CODE_ACE_PREVIEW__ !== "undefined" && __T3CODE_ACE_PREVIEW__ ? 40 : 52;
+const MACOS_WORKSPACE_TOPBAR_HEIGHT = 52;
 const MACOS_WINDOW_BUTTON_RADIUS = 7;
 
-function syncMacosWindowButtons(window: Electron.BrowserWindow): void {
+function syncMacosWindowButtons(window: Electron.BrowserWindow, AceGlass: boolean): void {
   if (window.isDestroyed() || window.isFullScreen()) return;
   window.setWindowButtonPosition({
     x: 16,
     y: Math.round(
-      (MACOS_WORKSPACE_TOPBAR_HEIGHT * window.webContents.getZoomFactor()) / 2 -
+      ((AceGlass ? 40 : MACOS_WORKSPACE_TOPBAR_HEIGHT) * window.webContents.getZoomFactor()) / 2 -
         MACOS_WINDOW_BUTTON_RADIUS,
     ),
   });
@@ -254,13 +253,14 @@ export function concealPendingQuitWindow(
 function getWindowTitleBarOptions(
   shouldUseDarkColors: boolean,
   platform: NodeJS.Platform,
+  AceGlass = false,
 ): WindowTitleBarOptions {
   if (platform === "darwin") {
     return {
       titleBarStyle: "hiddenInset",
       trafficLightPosition: {
         x: 16,
-        y: MACOS_WORKSPACE_TOPBAR_HEIGHT / 2 - MACOS_WINDOW_BUTTON_RADIUS,
+        y: (AceGlass ? 40 : MACOS_WORKSPACE_TOPBAR_HEIGHT) / 2 - MACOS_WINDOW_BUTTON_RADIUS,
       },
     };
   }
@@ -424,7 +424,7 @@ export const make = Effect.gen(function* () {
         : {}),
       ...iconOption,
       title: environment.displayName,
-      ...getWindowTitleBarOptions(shouldUseDarkColors, environment.platform),
+      ...getWindowTitleBarOptions(shouldUseDarkColors, environment.platform, AceGlass),
       webPreferences: {
         preload: environment.preloadPath,
         // The window boots hidden (show: false until ready-to-show), and
@@ -701,7 +701,7 @@ export const make = Effect.gen(function* () {
         window.webContents.send(WINDOW_FULLSCREEN_STATE_CHANNEL, true);
       });
       window.on("leave-full-screen", () => {
-        syncMacosWindowButtons(window);
+        syncMacosWindowButtons(window, AceGlass);
         window.webContents.send(WINDOW_FULLSCREEN_STATE_CHANNEL, false);
       });
     }
@@ -762,7 +762,7 @@ export const make = Effect.gen(function* () {
       clearDevelopmentLoadRetry();
       developmentLoadRetryIndex = 0;
       window.setTitle(environment.displayName);
-      if (environment.platform === "darwin") syncMacosWindowButtons(window);
+      if (environment.platform === "darwin") syncMacosWindowButtons(window, AceGlass);
     });
     window.webContents.on(
       "did-fail-load",
@@ -1033,7 +1033,9 @@ export const make = Effect.gen(function* () {
       webContents.setZoomLevel(
         direction === "reset" ? 0 : webContents.getZoomLevel() + (direction === "in" ? 0.5 : -0.5),
       );
-      if (environment.platform === "darwin") syncMacosWindowButtons(window.value);
+      if (environment.platform === "darwin") {
+        syncMacosWindowButtons(window.value, AceGlassWindows.has(window.value));
+      }
       // Chromium pushes the new level down to embedded guests, which would zoom
       // the previewed page along with the app UI. The preview browser keeps its
       // own zoom, so put each guest back where the preview left it.

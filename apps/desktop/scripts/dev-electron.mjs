@@ -53,19 +53,13 @@ const remoteDebuggingPort = process.env.T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT?.tr
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone dev script has no Effect runtime.
 const hostPlatform = NodeOS.platform();
 const OwnPreviewGroup = hostPlatform !== "win32" && process.env.VITE_T3CODE_ACE_PREVIEW === "1";
+const CompiledPreview = process.env.T3CODE_COMPILED_PREVIEW === "1";
 
 NodeChildProcess.execFileSync(
   process.execPath,
   [NodePath.join(desktopDir, "scripts/build-browser-secret.mjs")],
   { stdio: "inherit" },
 );
-
-await waitForResources({
-  baseDir: desktopDir,
-  files: requiredFiles,
-  tcpHost: devServer.hostname,
-  tcpPort: port,
-});
 
 const childEnv = { ...process.env };
 delete childEnv.ELECTRON_RUN_AS_NODE;
@@ -81,6 +75,30 @@ let currentApp = null;
 let restartQueue = Promise.resolve();
 const expectedExits = new WeakSet();
 const watchers = [];
+const PreviewGroupCleanup = new Set();
+let RendererServer = null;
+
+async function StartCompiledRenderer() {
+  RendererServer = NodeChildProcess.fork(
+    NodePath.join(import.meta.dirname, "preview-renderer.mjs"),
+    {
+      cwd: NodePath.resolve(desktopDir, "../web"),
+      env: childEnv,
+      stdio: ["inherit", "inherit", "inherit", "ipc"],
+    },
+  );
+  const Server = RendererServer;
+  await new Promise((Resolve, Reject) => {
+    Server.once("message", Resolve);
+    Server.once("error", Reject);
+    Server.once("exit", (Code) =>
+      Reject(new Error(`Renderer server exited before startup: ${Code}`)),
+    );
+    Server.on("exit", () => {
+      if (!shuttingDown) void shutdown(1);
+    });
+  });
+}
 
 function killChildTreeByPid(pid, signal) {
   if (hostPlatform === "win32" || typeof pid !== "number") {
@@ -138,13 +156,24 @@ function startApp() {
   app.once("exit", (code, signal) => {
     if (OwnPreviewGroup) {
       SignalApp(app, "SIGTERM");
-      setTimeout(() => SignalApp(app, "SIGKILL"), forcedShutdownTimeoutMs).unref();
+      const Cleanup = new Promise((Resolve) => {
+        setTimeout(() => {
+          SignalApp(app, "SIGKILL");
+          Resolve();
+        }, forcedShutdownTimeoutMs);
+      });
+      PreviewGroupCleanup.add(Cleanup);
+      void Cleanup.then(() => PreviewGroupCleanup.delete(Cleanup));
     }
     if (currentApp === app) {
       currentApp = null;
     }
 
     const exitedAbnormally = signal !== null || code !== 0;
+    if (CompiledPreview && !shuttingDown && !expectedExits.has(app) && !exitedAbnormally) {
+      void shutdown(0);
+      return;
+    }
     if (!shuttingDown && !expectedExits.has(app) && exitedAbnormally) {
       scheduleRestart();
     }
@@ -251,17 +280,32 @@ async function shutdown(exitCode) {
   }
 
   await stopApp();
-  killChildTree("TERM");
-  await new Promise((resolve) => {
-    setTimeout(resolve, childTreeGracePeriodMs);
-  });
-  killChildTree("KILL");
+  if (
+    RendererServer?.pid &&
+    RendererServer.exitCode === null &&
+    RendererServer.signalCode === null
+  ) {
+    const Server = RendererServer;
+    await new Promise((Resolve) => {
+      const Timeout = setTimeout(() => Server.kill("SIGKILL"), forcedShutdownTimeoutMs);
+      Server.once("exit", () => {
+        clearTimeout(Timeout);
+        Resolve();
+      });
+      Server.kill("SIGTERM");
+    });
+  }
+  await Promise.all(PreviewGroupCleanup);
+  if (!OwnPreviewGroup) {
+    killChildTree("TERM");
+    await new Promise((resolve) => {
+      setTimeout(resolve, childTreeGracePeriodMs);
+    });
+    killChildTree("KILL");
+  }
 
   process.exit(exitCode);
 }
-
-startWatchers();
-startApp();
 
 process.once("SIGINT", () => {
   void shutdown(130);
@@ -272,3 +316,18 @@ process.once("SIGTERM", () => {
 process.once("SIGHUP", () => {
   void shutdown(129);
 });
+
+try {
+  if (CompiledPreview) await StartCompiledRenderer();
+  await waitForResources({
+    baseDir: desktopDir,
+    files: requiredFiles,
+    tcpHost: devServer.hostname,
+    tcpPort: port,
+  });
+  if (!CompiledPreview) startWatchers();
+  startApp();
+} catch (Cause) {
+  console.error(Cause);
+  await shutdown(1);
+}

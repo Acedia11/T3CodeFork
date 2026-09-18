@@ -97,6 +97,11 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           "--filter=@t3tools/web",
           "dev",
         ]);
+        assert.deepStrictEqual(getDevRunnerModeArgs("preview:desktop"), [
+          "run",
+          "--filter=@t3tools/desktop",
+          "preview",
+        ]);
       }),
     );
 
@@ -353,42 +358,50 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       }),
     );
 
-    it.effect("pins desktop dev to a stable backend port and websocket url", () =>
-      Effect.gen(function* () {
-        const path = yield* Path.Path;
-        const env = yield* createDevRunnerEnv({
-          mode: "dev:desktop",
-          baseEnv: {
-            T3CODE_PORT: "13773",
-            T3CODE_MODE: "web",
-            T3CODE_NO_BROWSER: "0",
-            T3CODE_HOST: "0.0.0.0",
-            VITE_DEV_SERVER_URL: "http://127.0.0.1:8526",
-            VITE_WS_URL: "ws://localhost:13773",
-          },
-          serverOffset: 0,
-          webOffset: 0,
-          t3Home: "/tmp/my-t3",
-          browser: true,
-          autoBootstrapProjectFromCwd: undefined,
-          logWebSocketEvents: undefined,
-          host: "127.0.0.1",
-          port: 4222,
-          devUrl: undefined,
-        });
+    for (const Mode of ["dev:desktop", "preview:desktop"] as const) {
+      it.effect(`pins ${Mode} to its private home and clears inherited task controls`, () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const env = yield* createDevRunnerEnv({
+            mode: Mode,
+            baseEnv: {
+              T3CODE_PORT: "13773",
+              T3CODE_MODE: "web",
+              T3CODE_NO_BROWSER: "0",
+              T3CODE_HOST: "0.0.0.0",
+              VITE_DEV_SERVER_URL: "http://127.0.0.1:8526",
+              VITE_WS_URL: "ws://localhost:13773",
+              T3CODE_DESKTOP_DEV: "1",
+              T3CODE_DESKTOP_PREVIEW: "1",
+              T3CODE_COMPILED_PREVIEW: "1",
+            },
+            serverOffset: 0,
+            webOffset: 0,
+            t3Home: "/tmp/my-t3",
+            browser: true,
+            autoBootstrapProjectFromCwd: undefined,
+            logWebSocketEvents: undefined,
+            host: "127.0.0.1",
+            port: 4222,
+            devUrl: undefined,
+          });
 
-        assert.equal(env.T3CODE_HOME, path.resolve("/tmp/my-t3"));
-        assert.equal(env.PORT, "5733");
-        assert.equal(env.VITE_DEV_SERVER_URL, "http://127.0.0.1:5733");
-        assert.equal(env.HOST, "127.0.0.1");
-        assert.equal(env.T3CODE_PORT, "4222");
-        assert.equal(env.VITE_HTTP_URL, "http://127.0.0.1:4222");
-        assert.equal(env.T3CODE_MODE, undefined);
-        assert.equal(env.T3CODE_NO_BROWSER, undefined);
-        assert.equal(env.T3CODE_HOST, undefined);
-        assert.equal(env.VITE_WS_URL, "ws://127.0.0.1:4222");
-      }),
-    );
+          assert.equal(env.T3CODE_HOME, path.resolve("/tmp/my-t3"));
+          assert.equal(env.PORT, "5733");
+          assert.equal(env.VITE_DEV_SERVER_URL, "http://127.0.0.1:5733");
+          assert.equal(env.HOST, "127.0.0.1");
+          assert.equal(env.T3CODE_PORT, "4222");
+          assert.equal(env.VITE_HTTP_URL, "http://127.0.0.1:4222");
+          assert.equal(env.T3CODE_MODE, undefined);
+          assert.equal(env.T3CODE_NO_BROWSER, undefined);
+          assert.equal(env.T3CODE_HOST, undefined);
+          assert.equal(env.VITE_WS_URL, "ws://127.0.0.1:4222");
+          assert.equal(env.T3CODE_DESKTOP_DEV, undefined);
+          assert.equal(env.T3CODE_DESKTOP_PREVIEW, undefined);
+          assert.equal(env.T3CODE_COMPILED_PREVIEW, undefined);
+        }),
+      );
+    }
 
     it.effect("defaults dev server mode to the higher backend port range", () =>
       Effect.gen(function* () {
@@ -937,30 +950,32 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
     // Sharing dev:desktop would publish a URL whose renderer dials the
     // visitor's own loopback, and would clobber the VITE_DEV_SERVER_URL that
     // Electron loads from. It must decline, not half-work.
-    it.effect("declines to share for dev:desktop and still starts the stack", () => {
-      let spawnCount = 0;
-      const spawnerLayer = Layer.succeed(
-        ChildProcessSpawner.ChildProcessSpawner,
-        ChildProcessSpawner.make(() => {
-          spawnCount += 1;
-          return Effect.succeed(mockProcess(0));
-        }),
-      );
-
-      return Effect.gen(function* () {
-        yield* runDevRunnerWithInput({
-          ...devServerInput,
-          mode: "dev:desktop",
-          port: undefined,
-          share: true,
-        }).pipe(
-          Effect.provide(Layer.mergeAll(emptyConfigLayer, netServiceLayer, spawnerLayer)),
-          Effect.provideService(HostProcessPlatform, "linux"),
+    for (const Mode of ["dev:desktop", "preview:desktop"] as const) {
+      it.effect(`declines to share for ${Mode} and still starts the stack`, () => {
+        let spawnCount = 0;
+        const spawnerLayer = Layer.succeed(
+          ChildProcessSpawner.ChildProcessSpawner,
+          ChildProcessSpawner.make(() => {
+            spawnCount += 1;
+            return Effect.succeed(mockProcess(0));
+          }),
         );
 
-        assert.equal(spawnCount, 1);
+        return Effect.gen(function* () {
+          yield* runDevRunnerWithInput({
+            ...devServerInput,
+            mode: Mode,
+            port: undefined,
+            share: true,
+          }).pipe(
+            Effect.provide(Layer.mergeAll(emptyConfigLayer, netServiceLayer, spawnerLayer)),
+            Effect.provideService(HostProcessPlatform, "linux"),
+          );
+
+          assert.equal(spawnCount, 1);
+        });
       });
-    });
+    }
 
     // Single-origin browser dev proxies the backend at localhost, so a backend
     // bound only to a specific interface breaks every proxied request in a way
