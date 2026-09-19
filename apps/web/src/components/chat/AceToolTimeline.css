@@ -130,6 +130,39 @@
   gap: 8px;
 }
 
+[data-ace-preview] .AceToolRowHeader {
+  border-radius: 5px;
+  transition: background-color var(--AceMotionMicro) ease-out;
+}
+
+[data-ace-preview] .AceToolRowHeader[role="button"] {
+  cursor: pointer;
+}
+
+[data-ace-preview] .AceToolRowHeader[role="button"]:hover {
+  background-color: rgb(110 120 135 / 5%);
+}
+
+[data-ace-preview] .AceToolRowHeader:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+[data-ace-preview] .AceToolRow > div:not(:first-child) {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity var(--AceMotionQuick) var(--AceMotionEase),
+    translate var(--AceMotionQuick) var(--AceMotionEase);
+}
+
+@starting-style {
+  [data-ace-preview] .AceToolRow > div:not(:first-child) {
+    opacity: 0;
+    translate: 0 -2px;
+  }
+}
+
 [data-ace-preview] .AceToolRow[data-ace-tool-row] > div:first-child > span:first-child {
   width: 16px;
   height: 20px;
@@ -226,15 +259,20 @@
   background: rgb(255 255 255 / 22%);
 }
 
-[data-ace-preview] .AceToolRow > div:first-child > div > span:last-child {
+[data-ace-preview] .AceToolRowHeader > div > span:last-child {
   opacity: 0;
   transition: opacity 80ms ease;
 }
 
-[data-ace-preview] .AceToolRow:hover > div:first-child > div > span:last-child,
-[data-ace-preview] .AceToolRow:focus-within > div:first-child > div > span:last-child,
-[data-ace-preview] .AceToolRow[aria-expanded="true"] > div:first-child > div > span:last-child {
+[data-ace-preview] .AceToolRowHeader:hover > div > span:last-child,
+[data-ace-preview] .AceToolRowHeader:focus-within > div > span:last-child,
+[data-ace-preview] .AceToolRowHeader[aria-expanded="true"] > div > span:last-child {
   opacity: 1;
+}
+
+[data-ace-preview] .AceToolRowHeader > div > span:last-child > svg {
+  transition-duration: var(--AceMotionQuick);
+  transition-timing-function: var(--AceMotionEase);
 }
 
 [data-ace-preview] .AceToolTreeRow > div:not(:first-child) {
@@ -248,7 +286,10 @@
   [data-ace-preview] .AceToolGroupChevron > svg,
   [data-ace-preview] .AceToolGroup[data-ace-activity-group] > .AceToolGroupHeader,
   [data-ace-preview] .AceToolRow[data-ace-tool-row],
-  [data-ace-preview] .AceToolRow > div:first-child > div > span:last-child {
+  [data-ace-preview] .AceToolRowHeader,
+  [data-ace-preview] .AceToolRowHeader > div > span:last-child,
+  [data-ace-preview] .AceToolRowHeader > div > span:last-child > svg,
+  [data-ace-preview] .AceToolRow > div:not(:first-child) {
     transition: none;
   }
 }

@@ -5008,17 +5008,24 @@ const PlainWorkEntryRow = memo(function PlainWorkEntryRow(props: {
         AcePreviewEnabled && workEntry.toolLifecycleStatus === "inProgress" ? "" : undefined
       }
       className={cn(
-        "group/timeline-row relative flex flex-col rounded-md px-0.5 transition-colors",
+        "relative flex flex-col rounded-md px-0.5 transition-colors",
         isExpandedToolGroupEntry ? "py-0" : "py-0.5",
         expanded && "mb-1",
-        AcePreviewEnabled && "AceToolRow",
+        AcePreviewEnabled ? "AceToolRow" : "group/timeline-row",
         props.AceTreePosition && "AceToolTreeRow",
-        canExpand &&
+        !AcePreviewEnabled &&
+          canExpand &&
           "cursor-pointer hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
       )}
-      {...rowToggleProps}
+      {...(!AcePreviewEnabled ? rowToggleProps : {})}
     >
-      <div className="flex select-none items-center gap-1.5 transition-[opacity,translate] duration-200">
+      <div
+        className={cn(
+          "flex select-none items-center gap-1.5 transition-[opacity,translate] duration-200",
+          AcePreviewEnabled && "AceToolRowHeader group/timeline-row",
+        )}
+        {...(AcePreviewEnabled ? rowToggleProps : {})}
+      >
         <span
           className={iconWrapperClass}
           role={showFailedIndicator ? "img" : undefined}
