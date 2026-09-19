@@ -209,6 +209,7 @@ class ForkUpdater:
             Environment["PATH"] = str(Source / "node_modules/.bin") + os.pathsep + Environment["PATH"]
             Emit("Progress", Percent=5)
             self.BuildCommand(["corepack", "pnpm", "install", "--frozen-lockfile"], Source, Environment, Log)
+            self.BuildCommand(["node", "node_modules/electron/install.js"], Source / "apps/desktop", Environment, Log)
             Emit("Progress", Percent=20)
             self.BuildCommand([sys.executable, "-m", "unittest", "discover", "-s", "ForkTools", "-p", "*Test.py"], Source, Environment, Log)
             self.BuildCommand(["vp", "test", "run", "src/fork/ForkAutoUpdater.test.ts", "src/fork/ForkSmoke.test.ts", "src/window/DesktopWindow.test.ts", "src/updates/updateMachine.test.ts", "src/updates/DesktopUpdates.test.ts"],
