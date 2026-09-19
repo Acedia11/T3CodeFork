@@ -99,6 +99,9 @@ data are committed. Before installation, the updater snapshots the thread
 database and settings under its cache `Backups` directory and retains the prior
 application as `PreviousBundle`. Restoring an older application after a database
 migration may also require restoring its matching database snapshot.
+Database snapshots use the Node runtime in `BuildPath` with the source opened
+read-only. If a requested restart fails during installation, Ace attempts to reopen
+the remaining application and records the original error in `Install.log`.
 
 `PublicBuildEnvironment` in that configuration must include the four public
 `T3CODE_CLERK_PUBLISHABLE_KEY`, `T3CODE_CLERK_JWT_TEMPLATE`,

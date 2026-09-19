@@ -1,7 +1,9 @@
+import contextlib
 import json
 import os
 import plistlib
 import shutil
+import sqlite3
 from pathlib import Path
 import subprocess
 import sys
@@ -353,7 +355,7 @@ class UpdaterTests(unittest.TestCase):
                 return subprocess.CompletedProcess(Arguments, 1, "", "")
             return OriginalRun(Arguments, *Args, **Keywords)
         with patch.object(Updater, "Run", side_effect=ClosedApp), \
-             patch.object(Updater, "BackupUserData", side_effect=lambda Cache: (Cache / "Backups").mkdir()):
+             patch.object(Updater, "BackupUserData", side_effect=lambda Cache, Environment: (Cache / "Backups").mkdir()):
             self.assertEqual(Updater.Install(self.Updater)["Status"], "installed")
         self.assertEqual((self.Updater.AppPath / "Payload").read_text(), "validated")
         self.assertEqual((self.Updater.Cache / "PreviousBundle/Payload").read_text(), "old app")
@@ -372,11 +374,140 @@ class UpdaterTests(unittest.TestCase):
             if PathValue.name.endswith(".incoming.app"):
                 raise OSError("rename failed")
             return OriginalRename(PathValue, Target)
-        with patch.object(Path, "rename", FailIncoming), patch.object(Updater, "BackupUserData"):
+        OriginalRun = Updater.Run
+        def ReopenRestored(Arguments, *Args, **Keywords):
+            if Arguments[0] == "lsof":
+                return subprocess.CompletedProcess(Arguments, 1, "", "")
+            if Arguments[0] == "open":
+                self.assertEqual((self.Updater.AppPath / "Payload").read_text(), "old app")
+                return subprocess.CompletedProcess(Arguments, 0, "", "")
+            return OriginalRun(Arguments, *Args, **Keywords)
+        with patch.object(Path, "rename", FailIncoming), patch.object(Updater, "BackupUserData"), \
+             patch.object(Updater, "Run", side_effect=ReopenRestored) as Run:
             with self.assertRaisesRegex(OSError, "rename failed"):
-                Updater.Install(self.Updater)
+                Updater.Install(self.Updater, Reopen=True)
+            self.assertEqual(sum(Call.args[0][0] == "open" for Call in Run.call_args_list), 1)
         self.assertEqual((self.Updater.AppPath / "Payload").read_text(), "old app")
         self.assertTrue((self.Updater.Cache / "Pending.json").exists())
+
+    def test_BackupFailureRecoversOnlyRequestedRestarts(self):
+        Commit = self.Git(self.Repo, "rev-parse", "HEAD")
+        Manifest = dict(self.FakeManifest(Commit), Published=True)
+        Updater.WriteJson(self.Updater.Cache / "Pending.json", Manifest)
+        shutil.copytree(Manifest["App"], self.Updater.AppPath)
+        (self.Updater.AppPath / "Payload").write_text("old app")
+        OriginalRun = Updater.Run
+        for Reopen, OpenFails in [(False, False), (True, False), (True, True)]:
+            with self.subTest(Reopen=Reopen, OpenFails=OpenFails):
+                Failure = Updater.UpdateError("backup failed")
+                def RunCommand(Arguments, *Args, **Keywords):
+                    if Arguments[0] == "lsof":
+                        return subprocess.CompletedProcess(Arguments, 1, "", "")
+                    if Arguments[0] == "open":
+                        self.assertEqual(Arguments[1], str(self.Updater.AppPath))
+                        if OpenFails:
+                            raise OSError("reopen failed")
+                        return subprocess.CompletedProcess(Arguments, 0, "", "")
+                    return OriginalRun(Arguments, *Args, **Keywords)
+                with patch.object(Updater, "Run", side_effect=RunCommand) as Run, \
+                     patch.object(Updater, "BackupUserData", side_effect=Failure), \
+                     patch.object(Updater, "Emit") as Emit:
+                    with self.assertRaises(Updater.UpdateError) as Raised:
+                        Updater.Install(self.Updater, Reopen=Reopen)
+                    self.assertIs(Raised.exception, Failure)
+                    self.assertEqual(sum(Call.args[0][0] == "open" for Call in Run.call_args_list), int(Reopen))
+                    self.assertEqual(Emit.call_count, int(OpenFails))
+                self.assertEqual((self.Updater.AppPath / "Payload").read_text(), "old app")
+                self.assertEqual(json.loads((self.Updater.Cache / "Pending.json").read_text()), Manifest)
+                self.assertNotIn("InstalledCommit", self.Updater.Config)
+                self.assertFalse(self.Updater.AppPath.with_name("T3 Code (Ace).incoming.app").exists())
+
+    def test_ParentExitTimeoutDoesNotInstallOrReopen(self):
+        with patch.object(Updater.os, "kill"), \
+             patch.object(Updater.time, "monotonic", side_effect=[0, 181]), \
+             patch.object(Updater, "InstallPrepared") as Install, patch.object(Updater, "Run") as Run:
+            with self.assertRaisesRegex(Updater.UpdateError, "T3 did not quit"):
+                Updater.Install(self.Updater, ParentPid=123, Reopen=True)
+            Install.assert_not_called()
+            Run.assert_not_called()
+
+    def test_SuccessfulInstallReopensOnceWithoutRetryingLaunchFailures(self):
+        for OpenFails in [False, True]:
+            with self.subTest(OpenFails=OpenFails), \
+                 patch.object(Updater, "InstallPrepared", return_value={"Status": "installed"}), \
+                 patch.object(Updater, "Run", side_effect=OSError("reopen failed") if OpenFails else None) as Run:
+                if OpenFails:
+                    with self.assertRaisesRegex(OSError, "reopen failed"):
+                        Updater.Install(self.Updater, Reopen=True)
+                else:
+                    self.assertEqual(Updater.Install(self.Updater, Reopen=True)["Status"], "installed")
+                Run.assert_called_once()
+                self.assertEqual(Run.call_args.args[0], ["open", str(self.Updater.AppPath)])
+
+
+class BackupTests(unittest.TestCase):
+    def setUp(self):
+        self.Temporary = tempfile.TemporaryDirectory(prefix="AceBackup-")
+        self.Root = Path(self.Temporary.name)
+        self.State = self.Root / ".t3/userdata"
+        self.State.mkdir(parents=True)
+        self.Database = self.State / "state.sqlite"
+        self.Cache = self.Root / "Cache"
+        self.Environment = dict(os.environ)
+        self.Home = patch.object(Path, "home", return_value=self.Root)
+        self.Home.start()
+
+    def tearDown(self):
+        self.Home.stop()
+        self.Temporary.cleanup()
+
+    def test_ClosedWalDatabaseWithoutSidecars(self):
+        Script = """import { DatabaseSync } from 'node:sqlite';
+const Writer = new DatabaseSync(process.argv[1]);
+Writer.exec('PRAGMA journal_mode=WAL; CREATE TABLE Sample(Value); INSERT INTO Sample VALUES(42)');
+Writer.close();
+"""
+        Updater.Run(["node", "--input-type=module", "-e", Script, self.Database], Environment=self.Environment)
+        self.assertEqual(list(self.State.iterdir()), [self.Database])
+        Before = self.Database.read_bytes()
+        (self.State / "settings.json").write_text('{"theme":"dark"}')
+        (self.State / "secrets").mkdir()
+        (self.State / "secrets/Test").write_text("fixture")
+        Development = {"T3CODE_HOME": "/not-the-source", "T3CODE_DESKTOP_PREVIEW": "1",
+                       "ELECTRON_RUN_AS_NODE": "1", "NODE_ENV": "development"}
+        with patch.object(Updater, "Run", wraps=Updater.Run) as Run:
+            Backup = Updater.BackupUserData(self.Cache, dict(self.Environment, **Development))
+            self.assertTrue(Development.keys().isdisjoint(Run.call_args.kwargs["Environment"]))
+        with contextlib.closing(sqlite3.connect(Backup / "state.sqlite")) as Copy:
+            self.assertEqual(Copy.execute("select Value from Sample").fetchall(), [(42,)])
+            self.assertEqual(Copy.execute("pragma quick_check").fetchone(), ("ok",))
+        self.assertEqual(self.Database.read_bytes(), Before)
+        self.assertEqual((Backup / "settings.json").read_text(), '{"theme":"dark"}')
+        self.assertEqual((Backup / "secrets/Test").read_text(), "fixture")
+        self.assertEqual((Backup / "state.sqlite").stat().st_mode & 0o777, 0o600)
+
+    def test_LiveWalBackupIncludesUncheckpointedCommits(self):
+        with contextlib.closing(sqlite3.connect(self.Database)) as Writer:
+            Writer.executescript("pragma journal_mode=wal; pragma wal_autocheckpoint=0; create table Sample(Value);")
+            Writer.execute("pragma wal_checkpoint(truncate)")
+            Writer.execute("insert into Sample values(42)")
+            Writer.commit()
+            self.assertGreater(self.Database.with_name("state.sqlite-wal").stat().st_size, 0)
+            Backup = Updater.BackupUserData(self.Cache, self.Environment)
+            Writer.execute("insert into Sample values(43)")
+            Writer.commit()
+            with contextlib.closing(sqlite3.connect(Backup / "state.sqlite")) as Copy:
+                self.assertEqual(Copy.execute("select Value from Sample").fetchall(), [(42,)])
+
+    def test_FailedBackupRemovesOnlyItsIncompleteDirectory(self):
+        self.Database.write_bytes(b"invalid sqlite fixture")
+        Previous = self.Cache / "Backups/Previous"
+        Previous.mkdir(parents=True)
+        (Previous / "state.sqlite").write_text("existing backup")
+        with self.assertRaisesRegex(Updater.UpdateError, "Could not back up T3 data"):
+            Updater.BackupUserData(self.Cache, self.Environment)
+        self.assertEqual(list((self.Cache / "Backups").iterdir()), [Previous])
+        self.assertEqual((Previous / "state.sqlite").read_text(), "existing backup")
 
 
 if __name__ == "__main__":

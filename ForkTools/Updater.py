@@ -12,7 +12,6 @@ import plistlib
 import re
 import shutil
 import signal
-import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -345,22 +344,30 @@ def AppDigest(App):
     return Digest.hexdigest()
 
 
-def BackupUserData(Cache):
+def BackupUserData(Cache, Environment):
     Backup = Cache / "Backups" / time.strftime("%Y%m%d-%H%M%S")
     Backup.mkdir(parents=True, mode=0o700)
     State = Path.home() / ".t3/userdata"
     Database = State / "state.sqlite"
-    if Database.exists():
-        with sqlite3.connect(Database.as_uri() + "?mode=ro", uri=True) as Source:
-            with sqlite3.connect(Backup / "state.sqlite") as Destination:
-                Source.backup(Destination)
-    for Entry in State.glob("*.json"):
-        shutil.copy2(Entry, Backup / Entry.name)
-    if (State / "secrets").is_dir():
-        shutil.copytree(State / "secrets", Backup / "secrets")
-    for Entry in Backup.rglob("*"):
-        if Entry.is_file():
-            Entry.chmod(0o600)
+    try:
+        if Database.exists():
+            # The macOS system Python backup fails on closed WAL databases without sidecars.
+            Script = """import { DatabaseSync, backup } from 'node:sqlite';
+const Source = new DatabaseSync(process.argv[1], { readOnly: true });
+try { await backup(Source, process.argv[2]); } finally { Source.close(); }
+"""
+            Run(["node", "--input-type=module", "-e", Script, Database, Backup / "state.sqlite"],
+                Environment=ReleaseEnvironment(Environment))
+        for Entry in State.glob("*.json"):
+            shutil.copy2(Entry, Backup / Entry.name)
+        if (State / "secrets").is_dir():
+            shutil.copytree(State / "secrets", Backup / "secrets")
+        for Entry in Backup.rglob("*"):
+            if Entry.is_file():
+                Entry.chmod(0o600)
+    except Exception as Error:
+        shutil.rmtree(Backup, ignore_errors=True)
+        raise UpdateError(f"Could not back up T3 data: {Error}") from Error
     return Backup
 
 
@@ -374,6 +381,21 @@ def Install(Updater, ParentPid=0, Reopen=False):
         if time.monotonic() > Deadline:
             raise UpdateError("T3 did not quit. The prepared update was left pending.")
         time.sleep(0.5)
+    try:
+        Result = InstallPrepared(Updater)
+    except Exception:
+        if Reopen and (Updater.AppPath / "Contents/Info.plist").is_file():
+            try:
+                Run(["open", str(Updater.AppPath)], Environment=ReleaseEnvironment(Updater.Environment))
+            except Exception as Error:
+                Emit("Warning", Message=f"Ace also could not reopen: {Error}")
+        raise
+    if Reopen:
+        Run(["open", str(Updater.AppPath)], Environment=ReleaseEnvironment(Updater.Environment))
+    return Result
+
+
+def InstallPrepared(Updater):
     Manifest = Updater.Prepared()
     if not Manifest:
         raise UpdateError("No validated fork update is ready.")
@@ -387,7 +409,7 @@ def Install(Updater, ParentPid=0, Reopen=False):
         if Run(["lsof", "-t", "--", Executable], Check=False).stdout.strip():
             raise UpdateError("Quit T3 Code (Ace) before installing the prepared update.")
     RequireAppClosed()
-    BackupUserData(Updater.Cache)
+    BackupUserData(Updater.Cache, Updater.Environment)
     Incoming = App.with_name(App.stem + ".incoming.app")
     Previous = Updater.Cache / "PreviousBundle"
     if Incoming.exists():
@@ -415,8 +437,6 @@ def Install(Updater, ParentPid=0, Reopen=False):
     for Directory in sorted((Updater.Cache / "Backups").iterdir(), reverse=True)[3:]:
         if Directory.is_dir():
             shutil.rmtree(Directory)
-    if Reopen:
-        Run(["open", str(App)])
     return {"Status": "installed", "Version": Manifest["Version"], "App": str(App)}
 
 
