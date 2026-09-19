@@ -196,6 +196,8 @@ class UpdaterTests(unittest.TestCase):
 
     def test_SmokeUsesAnIsolatedProfileAndMockKeychain(self):
         App = Path(self.FakeManifest("smoke")["App"])
+        self.Updater.Environment.update({"T3CODE_HOME": "/live", "VITE_DEV_SERVER_URL": "http://localhost:6230",
+                                         "T3CODE_DESKTOP_DEV": "1", "T3CODE_PORT": "3773"})
         def Launch(Arguments, Directory, Environment, Log, Timeout):
             self.assertEqual(Arguments[1:], ["--use-mock-keychain"])
             self.assertEqual(Timeout, 120)
@@ -205,6 +207,7 @@ class UpdaterTests(unittest.TestCase):
             self.assertEqual(Environment["T3CODE_DISABLE_AUTO_UPDATE"], "true")
             self.assertNotIn("T3CODE_PORT", Environment)
             self.assertNotIn("VITE_DEV_SERVER_URL", Environment)
+            self.assertNotIn("T3CODE_DESKTOP_DEV", Environment)
             (Home / "ForkSmokePassed.json").write_text("{}")
         with patch.object(self.Updater, "BuildCommand", side_effect=Launch):
             self.Updater.SmokeTest(App, self.Root / "Build.log")
@@ -309,6 +312,25 @@ class UpdaterTests(unittest.TestCase):
             with self.assertRaisesRegex(Updater.UpdateError, "Cloud login build configuration is missing"):
                 self.Updater.Build(self.Git(self.Repo, "rev-parse", "HEAD"), self.Tag[1:])
             Build.assert_not_called()
+
+    def test_ArchivedReleaseClearsDevelopmentModesAndEndpoints(self):
+        Public = {Key: "public-value" for Key in Updater.PublicBuildKeys}
+        self.Config.update({"PublicBuildEnvironment": Public, "Repository": "test/fork"})
+        Development = {"T3CODE_DESKTOP_DEV": "1", "T3CODE_DESKTOP_PREVIEW": "1",
+                       "VITE_T3CODE_ACE_PREVIEW": "1", "T3CODE_ACE_DEBUG_RENDERER": "1",
+                       "NODE_ENV": "production", "VITE_HTTP_URL": "http://localhost:6230",
+                       "VITE_WS_URL": "ws://localhost:6230/ws", "T3CODE_HOME": "/live"}
+        self.Updater.Environment.update(Development)
+        def Inspect(Arguments, Directory, Environment, Log):
+            self.assertTrue(Directory.is_relative_to(self.Updater.Cache))
+            self.assertEqual(Environment["T3CODE_FORK_BUILD"], "1")
+            self.assertEqual({Key: Environment[Key] for Key in Public}, Public)
+            self.assertTrue(Development.keys().isdisjoint(Environment))
+            raise Updater.UpdateCancelled("inspected release environment")
+        with patch.object(self.Updater, "BuildCommand", side_effect=Inspect) as Build:
+            with self.assertRaisesRegex(Updater.UpdateCancelled, "inspected release"):
+                self.Updater.Build(self.Git(self.Repo, "rev-parse", "HEAD"), self.Tag[1:])
+            Build.assert_called_once()
 
     def test_PreparedPollDoesNotRehashTheApp(self):
         Commit = self.Git(self.Repo, "rev-parse", "HEAD")

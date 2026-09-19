@@ -76,7 +76,7 @@ const unitTestProject = {
   extends: true,
   test: {
     name: "unit",
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "vite/**/*.test.ts"],
     // The web runtime suite exercises auth bootstrap, saved environments,
     // and websocket subscription lifecycles. Under the full monorepo test
     // run, those async tests can exceed Vitest's default 5s budget.
@@ -157,13 +157,8 @@ const allowedHosts = [".ts.net", ...configuredAllowedHosts];
 export default defineConfig(({ command, mode, isPreview }) => {
   const Ace = ResolveAcePreview(command, mode, isPreview, process.env);
   const AcePreview = Ace.Enabled;
-  const AceOptimized = AcePreview && !Ace.Compiled && process.env.T3CODE_ACE_DEBUG_RENDERER !== "1";
-  if (Ace.Compiled) {
-    process.env.NODE_ENV = "production";
-  } else if (AcePreview) {
-    // Keep the editable preview on production React; only this renderer process changes.
-    process.env.NODE_ENV = AceOptimized ? "production" : "development";
-  }
+  const AceOptimized = Ace.Optimized;
+  if (Ace.NodeEnvironment) process.env.NODE_ENV = Ace.NodeEnvironment;
   return {
     assetsInclude: ["**/*.wasm"],
     plugins: [
@@ -207,7 +202,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
       ],
     },
     define: {
-      // Ordinary builds exclude the experimental UI, even with an inherited preview flag.
+      // Fork releases and explicit previews opt in; inherited preview flags cannot alter upstream builds.
       "import.meta.env.VITE_T3CODE_ACE_PREVIEW": JSON.stringify(AcePreview ? "1" : ""),
       // In dev mode, tell the web app where the WebSocket server lives
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),

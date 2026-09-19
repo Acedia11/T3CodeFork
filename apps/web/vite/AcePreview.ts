@@ -11,9 +11,21 @@ export function ResolveAcePreview(
 ) {
   const Compiled = Mode === "ace-preview";
   const Enabled =
-    Environment.VITE_T3CODE_ACE_PREVIEW === "1" &&
-    (Compiled || (Command === "serve" && !IsPreview));
-  if (!Compiled) return { Enabled, Compiled, OutDir: "dist" };
+    Environment.T3CODE_FORK_BUILD === "1" ||
+    (Environment.VITE_T3CODE_ACE_PREVIEW === "1" &&
+      (Compiled || (Command === "serve" && !IsPreview)));
+  const Editable = Enabled && !Compiled && Command === "serve" && !IsPreview;
+  const Optimized = Editable && Environment.T3CODE_ACE_DEBUG_RENDERER !== "1";
+  const NodeEnvironment =
+    Compiled || (Enabled && Command === "build")
+      ? "production"
+      : Editable
+        ? Optimized
+          ? "production"
+          : "development"
+        : undefined;
+  const Renderer = { Enabled, Compiled, Optimized, NodeEnvironment };
+  if (!Compiled) return { ...Renderer, OutDir: "dist" };
 
   const Home = Environment.T3CODE_HOME?.trim();
   if (!Home || !NodePath.isAbsolute(Home)) {
@@ -29,5 +41,5 @@ export function ResolveAcePreview(
   if (NodeFS.lstatSync(OutDir, { throwIfNoEntry: false })?.isSymbolicLink()) {
     throw new Error("The compiled Ace renderer directory must not be a symlink.");
   }
-  return { Enabled, Compiled, OutDir };
+  return { ...Renderer, OutDir };
 }

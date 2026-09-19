@@ -779,10 +779,15 @@ describe("DesktopWindow", () => {
     }),
   );
 
-  it.effect("keeps reused preview binaries on production window geometry outside development", () =>
+  it.effect("uses Ace geometry for fork releases and isolated development previews", () =>
     Effect.gen(function* () {
-      vi.stubGlobal("__T3CODE_ACE_PREVIEW__", true);
-      for (const IsDevelopment of [false, true]) {
+      for (const Case of [
+        { IsDevelopment: false, IsFork: false, IsPreview: true, AceGlass: false },
+        { IsDevelopment: true, IsFork: false, IsPreview: true, AceGlass: true },
+        { IsDevelopment: false, IsFork: true, IsPreview: false, AceGlass: true },
+      ]) {
+        vi.stubGlobal("__T3CODE_ACE_PREVIEW__", Case.IsPreview);
+        vi.stubGlobal("__T3CODE_FORK_BUILD__", Case.IsFork);
         const Window = makeFakeBrowserWindow();
         const Options: Electron.BrowserWindowConstructorOptions[] = [];
         const TestLayer = makeTestLayer({
@@ -796,7 +801,7 @@ describe("DesktopWindow", () => {
                 NodeServices.layer,
                 DesktopConfig.layerTest({
                   T3CODE_PORT: "3773",
-                  ...(IsDevelopment ? { VITE_DEV_SERVER_URL: "http://127.0.0.1:5733" } : {}),
+                  ...(Case.IsDevelopment ? { VITE_DEV_SERVER_URL: "http://127.0.0.1:5733" } : {}),
                 }),
               ),
             ),
@@ -805,11 +810,12 @@ describe("DesktopWindow", () => {
         yield* Effect.gen(function* () {
           const Desktop = yield* DesktopWindow.DesktopWindow;
           yield* Desktop.handleBackendReady(new URL("http://127.0.0.1:3773"));
-          assert.deepEqual(Options[0]?.trafficLightPosition, { x: 16, y: IsDevelopment ? 13 : 19 });
-          assert.equal(Options[0]?.transparent === true, IsDevelopment);
+          assert.deepEqual(Options[0]?.trafficLightPosition, { x: 16, y: Case.AceGlass ? 13 : 19 });
+          assert.equal(Options[0]?.transparent === true, Case.AceGlass);
+          assert.equal(Options[0]?.vibrancy, Case.AceGlass ? "under-window" : undefined);
           yield* Desktop.zoomMain("reset");
           assert.deepEqual(Window.setWindowButtonPosition.mock.lastCall, [
-            { x: 16, y: IsDevelopment ? 13 : 19 },
+            { x: 16, y: Case.AceGlass ? 13 : 19 },
           ]);
         }).pipe(Effect.provide(TestLayer));
       }

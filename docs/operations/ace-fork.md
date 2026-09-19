@@ -1,8 +1,9 @@
 # Ace's editable desktop fork
 
 The primary checkout is `~/T3CodeFork`, on `main`. The installed app is
-`/Applications/T3 Code (Ace).app`. Its UI, T3 home, browser profile, provider
-configuration, and login identity match Nightly. Quit Nightly before opening Ace;
+`/Applications/T3 Code (Ace).app`. Fork builds include Ace's redesigned interface
+and macOS glass appearance. Its T3 home, browser profile, provider configuration,
+and login identity match Nightly. Quit Nightly before opening Ace;
 the two applications use the same profile and are intended to run one at a time.
 
 ## Editing
@@ -32,10 +33,12 @@ win, and later launches preserve account changes made in the preview. Credential
 are not copied; instances with environment overrides need separate setup in
 **Settings > Providers**.
 
-Experimental visuals must use `AcePreviewEnabled` or the `data-ace-preview`
-document attribute. Vite enables them for development previews and the explicit
-`ace-preview` build mode. Compiled preview assets live in the preview home's
-`Renderer` directory; ordinary builds keep the experimental UI disabled.
+Ace visuals use `AcePreviewEnabled` or the `data-ace-preview` document attribute.
+Vite enables them for fork releases (`T3CODE_FORK_BUILD=1`), development previews,
+and the explicit `ace-preview` build mode. Fork releases use the normal packaged
+assets and production profile. Compiled preview assets live in the preview home's
+`Renderer` directory; upstream builds keep the Ace UI disabled. Preview history
+and appearance preferences stay in their separate profile when installing Ace.
 
 For edits that reload as you save, use `python3 ForkTools/Preview.py --dev`.
 That mode uses production React but still runs the development asset server.
@@ -60,9 +63,10 @@ open '/Applications/T3 Code (Ace).app'
 
 The existing startup, periodic, and manual update checks run the bundled fork
 updater. It follows published macOS Nightly releases, checks the Git merge,
-builds a source archive in a temporary directory, runs targeted updater tests,
-typechecks desktop and web, and launches the packaged app with an isolated profile
-and a mock Keychain. Startup validation has a two-minute host timeout.
+builds a source archive in a temporary directory, runs targeted updater and
+appearance tests, typechecks desktop and web, and launches the packaged app with
+an isolated profile and a mock Keychain. Startup validation checks the Ace UI and
+native window-control alignment and has a two-minute host timeout.
 Only after those checks pass does it advance and push the primary `main` and
 offer the app for installation. No Git branches or worktrees are used for builds.
 

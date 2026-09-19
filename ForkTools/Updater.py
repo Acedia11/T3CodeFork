@@ -60,6 +60,17 @@ def Run(Arguments, Directory=None, Environment=None, Input=None, Check=True):
     return Result
 
 
+def ReleaseEnvironment(Environment):
+    Result = dict(Environment)
+    for Key in ("NODE_ENV", "ELECTRON_RUN_AS_NODE", "VITE_DEV_SERVER_URL", "VITE_HTTP_URL", "VITE_WS_URL",
+                "VITE_T3CODE_ACE_PREVIEW", "T3CODE_ACE_DEBUG_RENDERER", "T3CODE_DESKTOP_DEV",
+                "T3CODE_DESKTOP_PREVIEW", "T3CODE_COMPILED_PREVIEW", "T3CODE_BUNDLED_DEV",
+                "T3CODE_DEV_INSTANCE", "T3CODE_HOME", "T3CODE_PORT", "T3CODE_PORT_OFFSET",
+                "T3CODE_FORK_SMOKE", "T3CODE_DISABLE_AUTO_UPDATE", "T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT"):
+        Result.pop(Key, None)
+    return Result
+
+
 def StopProcessGroup(Process, Grace=10):
     with contextlib.suppress(ProcessLookupError):
         os.killpg(Process.pid, signal.SIGTERM)
@@ -191,7 +202,7 @@ class ForkUpdater:
             Source.mkdir()
             Run(["tar", "-xf", Archive, "-C", Source])
             Archive.unlink()
-            Environment = dict(self.Environment, **PublicEnvironment)
+            Environment = ReleaseEnvironment(dict(self.Environment, **PublicEnvironment))
             Environment.update({"T3CODE_FORK_BUILD": "1", "T3CODE_COMMIT_HASH": Commit,
                                 "T3CODE_DESKTOP_UPDATE_REPOSITORY": self.Config["Repository"],
                                 "CI": "true"})
@@ -200,8 +211,10 @@ class ForkUpdater:
             self.BuildCommand(["corepack", "pnpm", "install", "--frozen-lockfile"], Source, Environment, Log)
             Emit("Progress", Percent=20)
             self.BuildCommand([sys.executable, "-m", "unittest", "discover", "-s", "ForkTools", "-p", "*Test.py"], Source, Environment, Log)
-            self.BuildCommand(["vp", "test", "run", "src/fork/ForkAutoUpdater.test.ts", "src/fork/ForkSmoke.test.ts", "src/updates/updateMachine.test.ts", "src/updates/DesktopUpdates.test.ts"],
+            self.BuildCommand(["vp", "test", "run", "src/fork/ForkAutoUpdater.test.ts", "src/fork/ForkSmoke.test.ts", "src/window/DesktopWindow.test.ts", "src/updates/updateMachine.test.ts", "src/updates/DesktopUpdates.test.ts"],
                               Source / "apps/desktop", Environment, Log)
+            self.BuildCommand(["vp", "test", "run", "--project", "unit", "vite/AcePreview.test.ts"],
+                              Source / "apps/web", Environment, Log)
             self.BuildCommand(["vp", "run", "--filter", "@t3tools/desktop", "typecheck"], Source, Environment, Log)
             self.BuildCommand(["vp", "run", "--filter", "@t3tools/web", "typecheck"], Source, Environment, Log)
             Emit("Progress", Percent=35)
@@ -233,10 +246,8 @@ class ForkUpdater:
             Info = plistlib.load(File)
         Executable = App / "Contents/MacOS" / Info["CFBundleExecutable"]
         with tempfile.TemporaryDirectory(prefix="Smoke-", dir=self.Cache) as Temporary:
-            Environment = dict(self.Environment, T3CODE_HOME=Temporary, T3CODE_FORK_SMOKE="1",
+            Environment = dict(ReleaseEnvironment(self.Environment), T3CODE_HOME=Temporary, T3CODE_FORK_SMOKE="1",
                                T3CODE_DISABLE_AUTO_UPDATE="true")
-            Environment.pop("T3CODE_PORT", None)
-            Environment.pop("VITE_DEV_SERVER_URL", None)
             self.BuildCommand([Executable, "--use-mock-keychain"], self.Repo, Environment, Log, Timeout=120)
             if not (Path(Temporary) / "ForkSmokePassed.json").exists():
                 raise UpdateError(f"The packaged app did not finish its startup validation. See {Log}")

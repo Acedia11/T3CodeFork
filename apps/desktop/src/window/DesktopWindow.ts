@@ -314,6 +314,7 @@ function bindFirstRevealTrigger(
 }
 
 declare const __T3CODE_ACE_PREVIEW__: boolean | undefined;
+declare const __T3CODE_FORK_BUILD__: boolean | undefined;
 
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
@@ -401,10 +402,11 @@ export const make = Effect.gen(function* () {
       yield* logWindowWarning("saved main window bounds could not be restored; using defaults");
     }
     const AceGlass =
-      environment.isDevelopment &&
       environment.platform === "darwin" &&
-      typeof __T3CODE_ACE_PREVIEW__ !== "undefined" &&
-      __T3CODE_ACE_PREVIEW__;
+      ((typeof __T3CODE_FORK_BUILD__ !== "undefined" && __T3CODE_FORK_BUILD__) ||
+        (environment.isDevelopment &&
+          typeof __T3CODE_ACE_PREVIEW__ !== "undefined" &&
+          __T3CODE_ACE_PREVIEW__));
     const window = yield* electronWindow.create({
       ...initialBounds,
       minWidth: 840,
