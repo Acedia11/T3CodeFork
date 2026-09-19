@@ -7,6 +7,8 @@ import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Spinner } from "../ui/spinner";
 import { composerFloatingLayerProps } from "./composerEventScope";
+import { AcePreviewEnabled } from "../../AcePreview";
+import { AceWallpaperArt } from "../AceWallpaperArt";
 
 interface PendingActionState {
   questionIndex: number;
@@ -218,9 +220,10 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   const sendButton = (
     <button
       type="submit"
+      data-ace-send={AcePreviewEnabled || undefined}
       className={cn(
         "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-[0_1px_--theme(--color-white/16%)] hover:scale-105 active:inset-shadow-[0_1px_--theme(--color-black/8%)] active:shadow-none disabled:pointer-events-none disabled:opacity-30 disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8",
-        stageBackdropVariant
+        AcePreviewEnabled || stageBackdropVariant
           ? "bg-transparent text-white enabled:shadow-black/24 enabled:hover:brightness-110"
           : "bg-message-action text-message-action-foreground enabled:shadow-message-action/24 hover:bg-message-action-hover",
       )}
@@ -248,7 +251,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                     : "Send message"
       }
     >
-      {stageBackdropVariant ? (
+      {AcePreviewEnabled ? (
+        <AceWallpaperArt ClassName="AceSendArtwork" />
+      ) : stageBackdropVariant ? (
         <span className="absolute inset-0 -z-10" aria-hidden="true">
           <StageBackdropButtonArt variant={stageBackdropVariant} />
         </span>

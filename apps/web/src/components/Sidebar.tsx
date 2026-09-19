@@ -764,6 +764,8 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         role="button"
         tabIndex={0}
         data-testid="sidebar-draft-row"
+        data-sidebar-thread-row="card"
+        data-active={props.isActive || undefined}
         className={cn(
           "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none",
           props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
@@ -1594,6 +1596,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                 role="button"
                 tabIndex={0}
                 data-testid="sidebar-row-slim"
+                data-sidebar-thread-row="slim"
+                data-active={props.isActive || undefined}
                 aria-busy={isRegeneratingTitle || undefined}
                 className={cn(rowSurfaceClassName, "flex h-9 items-center gap-2.5 px-2.5")}
                 onClick={handleClick}
@@ -1747,6 +1751,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
               role="button"
               tabIndex={0}
               data-testid="sidebar-row-card"
+              data-sidebar-thread-row="card"
+              data-active={props.isActive || undefined}
               aria-busy={isRegeneratingTitle || undefined}
               className={rowSurfaceClassName}
               onClick={handleClick}
@@ -2082,6 +2088,8 @@ const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
               // which owns all keyboard interaction for the listbox.
               tabIndex={-1}
               aria-selected={props.isHighlighted}
+              data-sidebar-thread-row="slim"
+              data-active={props.isRouteActive || undefined}
               aria-current={props.isRouteActive ? "page" : undefined}
               aria-label={
                 props.projectDisplayName

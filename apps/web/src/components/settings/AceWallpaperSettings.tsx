@@ -45,10 +45,10 @@ export function AceWallpaperSettings() {
   }
 
   return (
-    <SettingsSection id="appearance-wallpaper" title="New chat wallpaper">
+    <SettingsSection id="appearance-wallpaper" title="Wallpaper">
       <div className="AceWallpaperSettings" aria-busy={Loading}>
         <div className="AceWallpaperPreview">
-          <img src={Wallpaper ?? AceDefaultWallpaper} alt="Current new-chat wallpaper" />
+          <img src={Wallpaper ?? AceDefaultWallpaper} alt="Current Ace wallpaper" />
           <div className="AceWallpaperPreviewComposer" aria-hidden="true" />
         </div>
         <div className="AceWallpaperDetails">
@@ -56,7 +56,8 @@ export function AceWallpaperSettings() {
             {Wallpaper ? "Custom image" : "Sky"}
           </p>
           <p className="AceWallpaperDescription">
-            Shown in new chats. Fades when you send a message.
+            Your sidebar, send button, and new-chat background. The chat background fades when you
+            send a message.
           </p>
           <div className="AceWallpaperActions">
             <button

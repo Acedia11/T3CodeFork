@@ -44,7 +44,8 @@ html[data-ace-preview],
 [data-ace-preview] [data-ace-canvas] {
   position: relative;
   isolation: isolate;
-  background: var(--background);
+  /* Chromium leaks sharp text through backdrop blur over a translucent canvas. */
+  background: rgb(from var(--background) r g b / 1);
   transition: background-color 260ms ease-out;
 }
 
@@ -53,11 +54,11 @@ html[data-ace-preview],
 }
 
 [data-ace-preview] [data-ace-canvas][data-ace-empty="true"] {
-  background: rgb(219 233 246 / 82%);
+  background: rgb(219 233 246);
 }
 
 html.dark[data-ace-preview] [data-ace-canvas][data-ace-empty="true"] {
-  background: rgb(30 42 58 / 88%);
+  background: rgb(30 42 58);
 }
 
 [data-ace-preview] .AceBackdrop {
@@ -281,6 +282,47 @@ html.dark[data-ace-preview] [data-slot="composer-host"] {
 [data-ace-preview] [data-chat-composer-main-surface],
 [data-ace-preview] [data-chat-composer-surface] {
   border-radius: inherit;
+}
+
+[data-ace-preview] [data-slot="composer-host"]:has([data-pending-user-input]) {
+  background-color: color-mix(in srgb, var(--card) 76%, transparent);
+}
+
+[data-ace-preview] [data-chat-composer-top-drawer]:has([data-pending-user-input])::before,
+[data-ace-preview]
+  [data-slot="composer-host"]:has([data-pending-user-input])
+  [data-chat-composer-main-surface]::after {
+  display: none;
+}
+
+[data-ace-preview]
+  [data-slot="composer-host"]:has([data-pending-user-input])
+  [data-chat-composer-main-surface] {
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+[data-ace-preview] [data-pending-user-input-option] {
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition:
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+[data-ace-preview] [data-pending-user-input-option]:enabled:hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+[data-ace-preview] [data-pending-user-input-option][aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--ring) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ring) 48%, transparent);
+}
+
+[data-ace-preview] [data-pending-user-input-option]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }
 [data-ace-preview] [data-chat-composer-body] {
   padding: 13px 16px 8px;

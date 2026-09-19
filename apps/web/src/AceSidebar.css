@@ -1,0 +1,263 @@
+html[data-ace-preview] .AceAppSidebar {
+  --AceSidebarBase: #e9edf3;
+  --AceSidebarLine: rgb(93 112 140 / 12%);
+  --AceSidebarLift: rgb(255 255 255 / 66%);
+  --sidebar: var(--AceSidebarBase);
+  --sidebar-row-active: #f8faff;
+  --sidebar-row-selected: #d9e4f7;
+  --sidebar-row-hover: rgb(255 255 255 / 48%);
+  --sidebar-row-content-inset: 12px;
+  border-color: var(--AceSidebarLine);
+  background: var(--AceSidebarBase);
+}
+
+html.dark[data-ace-preview] .AceAppSidebar {
+  --AceSidebarBase: #20242e;
+  --AceSidebarLine: rgb(187 205 236 / 11%);
+  --AceSidebarLift: rgb(185 204 240 / 7%);
+  --sidebar-row-active: #333e52;
+  --sidebar-row-selected: #2c384f;
+  --sidebar-row-hover: rgb(172 195 234 / 7%);
+}
+
+html[data-ace-preview] .AceAppSidebar [data-slot="sidebar-inner"] {
+  background: var(--AceSidebarBase);
+  backdrop-filter: none;
+}
+
+html[data-ace-preview]:has([data-slot="sidebar"][data-side="left"][data-state="expanded"])
+  [data-sidebar-control]::before {
+  opacity: 0;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-slot="sidebar-header"] {
+  height: 132px;
+  align-items: flex-end;
+  gap: 9px;
+  padding: 0 18px 12px;
+  isolation: isolate;
+}
+
+html[data-ace-preview] .AceSidebarArtwork {
+  position: absolute;
+  z-index: -2;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 176px;
+  object-fit: cover;
+  object-position: 36% 42%;
+  pointer-events: none;
+  user-select: none;
+  mask-image: linear-gradient(#000 24%, rgb(0 0 0 / 70%) 49%, transparent 100%);
+}
+
+html[data-ace-preview] .AceAppSidebar [data-slot="sidebar-header"]::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    color-mix(in srgb, var(--AceSidebarBase) 82%, transparent),
+    transparent 75%
+  );
+}
+
+html.dark[data-ace-preview] .AceSidebarArtwork {
+  opacity: 0.72;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar-brand] {
+  display: flex;
+  height: 34px;
+  margin: 0;
+  flex: 1;
+  overflow: visible;
+  -webkit-app-region: no-drag;
+}
+
+html[data-ace-preview] .AceSidebarBrand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+html[data-ace-preview] .AceSidebarBrand > :first-child {
+  color: var(--foreground);
+  font-size: 24px;
+  font-weight: 640;
+  letter-spacing: -1px;
+}
+
+html[data-ace-preview] .AceSidebarBrand > :last-child {
+  color: var(--secondary-label);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-environment-identification="pill"] {
+  display: inline-flex;
+  margin: 0 0 8px;
+  font-size: 9px;
+  border: 1px solid var(--AceSidebarLine);
+  background: var(--AceSidebarLift);
+}
+
+html[data-ace-preview] .AceSidebarTools {
+  flex-direction: column-reverse;
+  align-items: stretch;
+  gap: 10px;
+  padding: 0 2px 10px;
+}
+
+html[data-ace-preview] .AceSidebarActions {
+  gap: 3px;
+}
+
+html[data-ace-preview] .AceSidebarActions > button {
+  border-radius: 9px;
+  height: 32px;
+  width: 32px;
+}
+
+html[data-ace-preview] .AceSidebarActions .AceSidebarNewThread {
+  order: -1;
+  width: auto;
+  margin-right: auto;
+  padding: 0 11px;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 540;
+  background: var(--AceSidebarLift);
+  box-shadow:
+    inset 0 0 0 1px var(--AceSidebarLine),
+    0 2px 4px rgb(14 25 48 / 3%);
+}
+
+html[data-ace-preview] .AceSidebarSearch {
+  flex: none;
+  height: 34px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  background: rgb(91 112 149 / 6%);
+  box-shadow: inset 0 0 0 1px var(--AceSidebarLine);
+  transition:
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+html[data-ace-preview] .AceSidebarSearch:focus-within {
+  background: var(--AceSidebarLift);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar-thread-row] {
+  border-radius: 11px;
+  transition:
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar-thread-row="card"]::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: var(--AceSidebarLine);
+  pointer-events: none;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar-thread-row][data-active="true"] {
+  outline: 1px solid var(--AceSidebarLine);
+  outline-offset: -1px;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar-thread-row][data-active="true"]::after {
+  display: none;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar-thread-row]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-sidebar="menu-button"] {
+  border-radius: 9px;
+}
+
+html[data-ace-preview] .AceAppSidebar [data-slot="sidebar-footer"] {
+  padding: 9px 12px 11px;
+  border-top: 1px solid var(--AceSidebarLine);
+  background: var(--AceSidebarBase);
+}
+
+html[data-ace-preview] .AceSidebarUtilities {
+  container: AceSidebarUtilities / inline-size;
+  gap: 4px;
+}
+
+html[data-ace-preview] .AceSidebarUtilities [data-sidebar="menu-button"] {
+  height: 32px;
+  font-size: 12px;
+}
+
+@container AceSidebarUtilities (width < 210px) {
+  html[data-ace-preview] .AceSidebarUtilities [aria-label="Settings"] {
+    width: 32px;
+    justify-content: center;
+    padding: 0;
+  }
+  html[data-ace-preview] .AceSidebarSettingsLabel {
+    display: none;
+  }
+}
+
+html[data-ace-preview] [data-ace-send] {
+  background: #2858a2;
+  color: white;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 24%),
+    0 2px 5px rgb(18 44 84 / 18%);
+}
+
+html[data-ace-preview] .AceSendArtwork {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 58% 25%;
+  pointer-events: none;
+}
+
+html[data-ace-preview] [data-ace-send]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(rgb(8 31 64 / 32%), rgb(8 31 64 / 55%));
+}
+
+@media (max-height: 700px) {
+  html[data-ace-preview] .AceAppSidebar [data-slot="sidebar-header"] {
+    height: 108px;
+  }
+  html[data-ace-preview] .AceSidebarArtwork {
+    height: 150px;
+  }
+}
+
+@media (max-width: 767px) {
+  html[data-ace-preview] .AceAppSidebar [data-slot="sidebar-header"] {
+    padding-left: 12px;
+  }
+  html[data-ace-preview] .AceAppSidebar [data-sidebar="trigger"] {
+    margin-bottom: 4px;
+  }
+}

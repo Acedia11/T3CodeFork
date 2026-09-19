@@ -711,6 +711,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         render={rowButtonRender}
         size="sm"
         isActive={isActive}
+        data-sidebar-thread-row="slim"
         data-testid={`thread-row-${thread.id}`}
         className={`${resolveThreadRowClassName({
           isActive,
@@ -2978,7 +2979,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
               <CommandDialogTrigger
                 render={
                   <SidebarMenuButton
-                    className="focus-visible:ring-0"
+                    className="AceSidebarSearch focus-visible:ring-0"
                     data-testid="command-palette-trigger"
                   />
                 }

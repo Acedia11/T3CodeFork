@@ -4,6 +4,7 @@ import { createHashHistory, createBrowserHistory } from "@tanstack/react-router"
 
 import "./index.css";
 import "./AcePreview.css";
+import "./AceSidebar.css";
 import "./AceMotion.css";
 
 import { AcePreviewEnabled } from "./AcePreview";

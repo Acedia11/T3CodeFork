@@ -20,6 +20,7 @@ import {
 } from "react";
 
 import { cn } from "~/lib/utils";
+import { AcePreviewEnabled } from "../../AcePreview";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { SidebarMenuButton } from "../ui/sidebar";
@@ -79,10 +80,10 @@ export function SidebarThreadHeader({
     : "New thread";
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="AceSidebarTools flex items-center gap-1">
       <div
         ref={searchFieldRef}
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+        className="AceSidebarSearch flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
       >
         <SearchIcon className="size-4 shrink-0 text-[var(--sidebar-icon-color)]" />
         <Input
@@ -125,7 +126,7 @@ export function SidebarThreadHeader({
       {/* Unfilled like the search field beside it: the buttons carry their own
           hover states, and a background well reads far louder on themed
           palettes than on the base light and dark ones. */}
-      <div className="flex shrink-0 items-center">
+      <div className="AceSidebarActions flex shrink-0 items-center">
         {hasProjects ? (
           <>
             {projectScope}
@@ -135,6 +136,7 @@ export function SidebarThreadHeader({
           </>
         ) : null}
         <SidebarHeaderIconButton
+          className="AceSidebarNewThread"
           label="New thread"
           tooltip={
             showNewThreadInProjectHint ? (
@@ -153,6 +155,7 @@ export function SidebarThreadHeader({
           onClick={onNewThread}
         >
           <SquarePenIcon />
+          {AcePreviewEnabled ? <span>New thread</span> : null}
         </SidebarHeaderIconButton>
       </div>
     </div>

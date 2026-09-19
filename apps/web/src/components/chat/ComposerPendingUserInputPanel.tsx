@@ -173,6 +173,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
 
   return (
     <Collapsible
+      data-pending-user-input=""
       open={!isCollapsed}
       onOpenChange={(open) => {
         setCollapsedQuestionId(open ? null : activeQuestion.id);
@@ -207,21 +208,23 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
             // Sits inside the trigger button, so stop the click from toggling
             // the disclosure. Dismiss closes the question without a reply.
             <ComposerBanner.Dismiss
-              render={<span role="button" tabIndex={0} />}
+              render={
+                <span role="button" tabIndex={isResponding ? -1 : 0} aria-disabled={isResponding} />
+              }
               aria-label="Dismiss question without answering"
               title="Dismiss question without answering"
-              disabled={isResponding}
+              className={isResponding ? "pointer-events-none opacity-50" : undefined}
               data-pending-user-input-dismiss
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onDismiss(prompt.requestId);
+                if (!isResponding) onDismiss(prompt.requestId);
               }}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
                 event.stopPropagation();
-                onDismiss(prompt.requestId);
+                if (!isResponding) onDismiss(prompt.requestId);
               }}
             />
           ) : null}
@@ -276,6 +279,8 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                 <button
                   key={`${activeQuestion.id}:${optionValue}`}
                   type="button"
+                  data-pending-user-input-option=""
+                  aria-pressed={isSelected}
                   disabled={isResponding}
                   onClick={() => {
                     handleOptionSelection(activeQuestion.id, optionValue);

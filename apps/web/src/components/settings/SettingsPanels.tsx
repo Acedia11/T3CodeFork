@@ -1153,6 +1153,13 @@ export function AppearanceSettingsPanel() {
   const environmentStageLabel = useEnvironmentStageLabel();
   const showEnvironmentIdentification =
     resolveEnvironmentIdentificationPillLabel(environmentStageLabel) !== null;
+  const EnvironmentIdentification =
+    AcePreviewEnabled && settings.environmentIdentificationMode === "artwork"
+      ? "pill"
+      : settings.environmentIdentificationMode;
+  const DefaultEnvironmentIdentification = AcePreviewEnabled
+    ? "pill"
+    : DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE;
   const glassOpacityRatio =
     (settings.glassOpacity - MIN_GLASS_OPACITY) / (MAX_GLASS_OPACITY - MIN_GLASS_OPACITY);
   const glassOpacitySliderStyle = {
@@ -1296,12 +1303,12 @@ export function AppearanceSettingsPanel() {
             {...searchableSetting("environment-identification")}
             description="Choose how Dev and Nightly environments are identified."
             resetAction={
-              settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
+              EnvironmentIdentification !== DefaultEnvironmentIdentification ? (
                 <SettingResetButton
                   label="environment identification"
                   onClick={() =>
                     updateSettings({
-                      environmentIdentificationMode: DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
+                      environmentIdentificationMode: DefaultEnvironmentIdentification,
                     })
                   }
                 />
@@ -1309,7 +1316,7 @@ export function AppearanceSettingsPanel() {
             }
             control={
               <Select
-                value={settings.environmentIdentificationMode}
+                value={EnvironmentIdentification}
                 onValueChange={(value) => {
                   if (value === "artwork" || value === "pill" || value === "none") {
                     updateSettings({ environmentIdentificationMode: value });
@@ -1322,15 +1329,17 @@ export function AppearanceSettingsPanel() {
                   aria-label="Environment identification"
                 >
                   <SelectValue>
-                    {ENVIRONMENT_IDENTIFICATION_LABELS[settings.environmentIdentificationMode]}
+                    {ENVIRONMENT_IDENTIFICATION_LABELS[EnvironmentIdentification]}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
-                  {Object.entries(ENVIRONMENT_IDENTIFICATION_LABELS).map(([value, label]) => (
-                    <SelectItem hideIndicator key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
+                  {Object.entries(ENVIRONMENT_IDENTIFICATION_LABELS)
+                    .filter(([value]) => !AcePreviewEnabled || value !== "artwork")
+                    .map(([value, label]) => (
+                      <SelectItem hideIndicator key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                 </SelectPopup>
               </Select>
             }

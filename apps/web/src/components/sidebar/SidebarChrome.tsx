@@ -4,6 +4,8 @@ import { memo, useCallback } from "react";
 import { Link, useCanGoBack, useLocation, useNavigate } from "@tanstack/react-router";
 
 import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
+import { AcePreviewEnabled } from "../../AcePreview";
+import { AceWallpaperArt } from "../AceWallpaperArt";
 import { cn } from "../../lib/utils";
 import { useEnvironments } from "../../state/environments";
 import { T3Wordmark } from "../T3Wordmark";
@@ -39,10 +41,11 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
   const backdropVariant = resolveSidebarStageBackdropVariant(
     stageLabel,
-    environmentIdentificationMode === "artwork",
+    !AcePreviewEnabled && environmentIdentificationMode === "artwork",
   );
   const pillLabel =
-    environmentIdentificationMode === "pill"
+    environmentIdentificationMode === "pill" ||
+    (AcePreviewEnabled && environmentIdentificationMode === "artwork")
       ? resolveEnvironmentIdentificationPillLabel(stageLabel)
       : null;
 
@@ -53,7 +56,11 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
         isElectron && "drag-region",
       )}
     >
-      {backdropVariant ? <SidebarStageBackdrop variant={backdropVariant} /> : null}
+      {AcePreviewEnabled ? (
+        <AceWallpaperArt ClassName="AceSidebarArtwork" />
+      ) : backdropVariant ? (
+        <SidebarStageBackdrop variant={backdropVariant} />
+      ) : null}
       <SidebarTrigger
         className={cn(
           "relative z-10 md:hidden",
@@ -88,18 +95,24 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
       )}
       to="/"
     >
-      {/* Center the visible capitals, without the font's ascender/descender space. */}
-      <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
-        <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
-        <span
-          className={cn(
-            "truncate [text-box:trim-both_cap_alphabetic]",
-            onBackdrop ? "text-white/70" : "text-muted-foreground",
-          )}
-        >
-          Code
+      {AcePreviewEnabled ? (
+        <span className="AceSidebarBrand">
+          <span>Ace</span>
+          <span>T3 Code</span>
         </span>
-      </span>
+      ) : (
+        <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
+          <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
+          <span
+            className={cn(
+              "truncate [text-box:trim-both_cap_alphabetic]",
+              onBackdrop ? "text-white/70" : "text-muted-foreground",
+            )}
+          >
+            Code
+          </span>
+        </span>
+      )}
     </Link>
   );
 }
@@ -118,8 +131,15 @@ function SidebarUtilityItem({
       <Tooltip>
         <TooltipTrigger
           render={
-            <SidebarMenuButton aria-label={label} onClick={onClick} size="icon">
+            <SidebarMenuButton
+              aria-label={label}
+              onClick={onClick}
+              size={AcePreviewEnabled && label === "Settings" ? "default" : "icon"}
+            >
               {icon}
+              {AcePreviewEnabled && label === "Settings" ? (
+                <span className="AceSidebarSettingsLabel">Settings</span>
+              ) : null}
             </SidebarMenuButton>
           }
         />
@@ -185,7 +205,7 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   }, [canGoBack, closeMobileSidebar, navigate]);
 
   return (
-    <SidebarMenu className="flex-row items-center">
+    <SidebarMenu className="AceSidebarUtilities flex-row items-center">
       {currentFooterPage ? (
         <SidebarMenuItem className="min-w-0 flex-1">
           <SidebarMenuButton onClick={handleBackClick}>
